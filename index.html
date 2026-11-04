@@ -1660,7 +1660,9 @@
         `<tr><td class="label" colspan="2" style="font-size:12px;font-style:italic;">${MENTION_TVA}</td></tr>`;
 
     document.getElementById('clientBreakdownContainer').innerHTML = headerHTML + breakdownHTML;
-    document.getElementById('clientSummaryTable').innerHTML = summaryHTML;
+    const conditionsHTML = `<tr><td class="label" colspan="2" style="font-size:12px;color:var(--ink-soft);padding-top:14px;line-height:1.5;">
+      Prix ferme établi sur la base des plans et informations fournis. Toute modification du projet (pièces, niveau de détail, dimensions, options) fera l'objet d'un avenant au présent devis.</td></tr>`;
+    document.getElementById('clientSummaryTable').innerHTML = summaryHTML + conditionsHTML;
 
     // ---- Pitch button ----
     const existingPitch = document.getElementById('pitchBtnWrap');
