@@ -404,6 +404,11 @@
   .suivi-bar.ok{ background:var(--sage); }
   .suivi-bar.over{ background:var(--red-pencil); }
   .suivi-bar.neutral{ background:var(--blue-light); }
+  .suivi-cat td{ font-weight:600; color:var(--blue); padding-top:14px; border-bottom:1.5px solid var(--blue); }
+  .chrono{ font-family:'IBM Plex Mono',monospace; cursor:pointer; border-bottom:1px dotted var(--ink-soft); }
+  .chrono-btn{ padding:4px 10px; font-size:12px; }
+  tr.chrono-run td{ background:rgba(92,122,94,0.12); }
+  .chrono-chip{ border-style:solid; border-color:var(--sage); color:var(--sage); font-weight:600; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .suivi-save-row{ text-align:right; margin-top:4px; }
 
   /* ---------- Commentaires par poste ---------- */
@@ -481,6 +486,7 @@
       <button class="btn primary" id="btnLibrary">📁 Mes projets</button>
       <button class="btn" id="btnNew">＋ Nouveau devis</button>
       <button class="btn" id="btnSave" title="Enregistrer sur cet appareil et sur le Drive">💾 Enregistrer</button>
+      <button class="drive-chip chrono-chip" id="chronoChip" style="display:none" title="Chrono en cours : ouvrir le suivi"></button>
       <button class="drive-chip" id="btnDrive" title="Synchronisation Google Drive">☁ Drive</button>
       <details class="more-menu" id="moreMenu">
         <summary class="btn" aria-label="Plus d'actions">⋯ Plus</summary>
@@ -596,6 +602,8 @@
         <div class="field">
           <label for="p_echelle">Échelle</label>
           <select id="p_echelle">
+            <option value="10">1 : 10</option>
+            <option value="20">1 : 20</option>
             <option value="50">1 : 50</option>
             <option value="75">1 : 75</option>
             <option value="100">1 : 100</option>
@@ -637,12 +645,12 @@
           </select>
           <span class="unit">Les heures de dessin se calculent sur la surface de plancher (longueur × largeur × étages).</span>
         </div>
-        <div class="field">
-          <label for="p_ajust_dessin">Ajustement dessin</label>
-          <input type="number" id="p_ajust_dessin" step="0.5" placeholder="0">
-          <span class="unit">h en plus (ou en moins) selon la complexité</span>
+        <div class="field full">
+          <label>Fichiers STL de la maquette (facultatif)</label>
+          <button type="button" class="btn" id="btnStl">📐 Charger les STL</button>
+          <input type="file" id="stlInput" accept=".stl" multiple hidden>
+          <span class="unit" id="stlInfo">Le logiciel calcule le volume, estime le filament et le temps d'impression, et remplit les deux cases ci-dessous.</span>
         </div>
-        <div class="field"></div>
         <div class="field">
           <label for="p_impr_heures">Temps d'impression (trancheur)</label>
           <input type="number" id="p_impr_heures" min="0" step="1" placeholder="Vide = estimation auto">
@@ -792,6 +800,12 @@
         <div class="field"><label for="param_impr_g_cm2">Estimation filament</label><input type="number" id="param_impr_g_cm2" step="0.05"><span class="unit">g par cm² de maquette et par étage (Bati Tole ≈ 1,5)</span></div>
       </div>
 
+      <div class="field-grid">
+        <div class="field"><label for="param_pied_h_machine">Pieds — impression par pied</label><input type="number" id="param_pied_h_machine" step="0.5"><span class="unit">h machine (grande maquette)</span></div>
+        <div class="field"><label for="param_stl_remplissage">STL — part de matière réelle</label><input type="number" id="param_stl_remplissage" step="0.05"><span class="unit">du volume plein (parois + remplissage)</span></div>
+        <div class="field"><label for="param_stl_g_par_h">STL — débit imprimante</label><input type="number" id="param_stl_g_par_h" step="1"><span class="unit">g / h (Bati Tole ≈ 60)</span></div>
+      </div>
+
       <h3>Forfaits</h3>
       <div class="field-grid">
         <div class="field"><label for="param_mobilier_tranche">Mobilier — par tranche</label><input type="number" id="param_mobilier_tranche" step="1"><span class="unit">€ / 50 m² bâtiment (+ dessin cuisine)</span></div>
@@ -876,7 +890,6 @@
     { key:'eclairage_exterieur', label:'Éclairage extérieur',          desc:"Façade, lampadaires, allées éclairées." },
     { key:'mobilier',            label:'Mobilier miniature',           desc:"Ameublement intérieur et/ou extérieur, impression résine." },
     { key:'cloche_plexi',        label:'Cloche de protection plexi',   desc:"Habillage plexiglas pour la présentation.", requiresJardin:true },
-    { key:'pieds',               label:'Pieds de maquette imprimés',   desc:"Pieds dessinés et imprimés (grandes maquettes, ≈ 12 h d'impression)." },
     { key:'cadre_metal',         label:'Cadre / socle métal',          desc:"Support et encadrement de présentation.", requiresJardin:true },
   ];
 
@@ -896,7 +909,7 @@
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
       dessin_brut_base:4, dessin_brut_m2:0.05, dessin_std_base:6, dessin_std_m2:0.10, dessin_det_base:8, dessin_det_m2:0.20,
       plans_papier_m2:0.05,
-      filament_kg:25, machine_h:1,
+      filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.4, stl_g_par_h:60,
       bois_base_h:5, bois_par_m_h:4.5, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
       polystyrene:8, plateau:20, enduit:5, flocage:6, gravier:6.5, vernis:19, bois_jupe:12, tasseaux:8,
       plastique_forfait:500, plastique_tranche:50, plastique_seuil:500,
@@ -970,7 +983,6 @@
     state.projet.deplacement = document.getElementById('p_deplacement').checked;
     state.projet.distance = document.getElementById('p_distance').value;
     state.projet.niveau = document.getElementById('p_niveau').value || 'standard';
-    state.projet.ajust_dessin = parseFloat(document.getElementById('p_ajust_dessin').value) || 0;
     state.projet.impr_heures = document.getElementById('p_impr_heures').value;
     state.projet.impr_grammes = document.getElementById('p_impr_grammes').value;
 
@@ -1007,7 +1019,7 @@
     p.vernis = parseFloat(document.getElementById('param_vernis').value) || 0;
     p.bois_jupe = parseFloat(document.getElementById('param_bois_jupe').value) || 0;
     p.tasseaux = parseFloat(document.getElementById('param_tasseaux').value) || 0;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1040,7 +1052,6 @@
     document.getElementById('p_distance_wrap').style.display = state.projet.deplacement ? 'flex' : 'none';
     document.getElementById('p_distance').value = state.projet.distance;
     document.getElementById('p_niveau').value = state.projet.niveau || 'standard';
-    document.getElementById('p_ajust_dessin').value = state.projet.ajust_dessin || '';
     document.getElementById('p_impr_heures').value = state.projet.impr_heures || '';
     document.getElementById('p_impr_grammes').value = state.projet.impr_grammes || '';
 
@@ -1065,7 +1076,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1170,13 +1181,17 @@
     } else if (state.projet.plans2d === 'papier'){
       dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher * fEch) });
     }
-    dessin.push({ label:`Modélisation 3D — niveau ${NIV[0]} (${plancher.toFixed(0)} m² de plancher)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
-    if (state.projet.ajust_dessin) dessin.push({ label:'Ajustement complexité', heures: state.projet.ajust_dessin });
+    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancher.toFixed(0)} m² de plancher)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
 
     // --- Impression 3D (temps machine + filament) ---
     const surfImpr  = (longueur/ev*100) * (largeur/ev*100) * nbEtages;   // cm² de maquette à imprimer (emprise × étages)
-    const hImpr     = (parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2)) + (o.pieds ? 12 : 0);
-    const gImpr     = parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2);
+    // Pieds : 4 jusqu'à 1 m de maquette, +2 par mètre au-delà (Bati Tole, 1,35 m → 6 pieds)
+    const coteMaq   = Math.max(longueur/ev, largeur/ev, Math.sqrt(Sbase || 0));
+    const nbPieds   = 4 + 2 * Math.max(0, Math.ceil(coteMaq - 1));
+    const hPieds    = arr1(nbPieds * p.pied_h_machine * Math.min(1, Math.max(0.3, coteMaq)));
+    const gPieds    = Math.round(hPieds * p.stl_g_par_h);
+    const hImpr     = (parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2)) + hPieds;
+    const gImpr     = (parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2)) + gPieds;
     const estim     = !(parseFloat(state.projet.impr_heures) && parseFloat(state.projet.impr_grammes));
     decoupe.push({ label:'Préparation impression (STL, plateaux, surveillance, reprises)', heures: arr1(p.prep_impr_base + p.prep_impr_par_h * hImpr) });
     if (o.eclairage_interieur){
@@ -1189,7 +1204,7 @@
     }
     if (o.murs_ouvrages) dessin.push({ label:'Murs ouvragés', heures: 2 });
     if (o.mobilier) dessin.push({ label:'Dessin cuisine (mobilier)', heures: 5 });
-    if (o.pieds) dessin.push({ label:'Dessin des pieds de maquette', heures: 2.5 });
+    dessin.push({ label:`Dessin des pieds (${nbPieds} pieds)`, heures: arr1(1 + 0.25 * nbPieds) });
 
     // --- Travail du bois (jupe) — calé sur Bati Tole : ≈ 21 h pour 3,6 m de périmètre ---
     if (Ccond){
@@ -1215,7 +1230,7 @@
     }
 
     // --- Forfaits directs ---
-    forfaits.push({ label:`Impression 3D — ${hImpr} h machine${estim ? ' (estimation)' : ''}`, cost: hImpr * p.machine_h });
+    forfaits.push({ label:`Impression 3D — ${hImpr} h machine, dont ${hPieds} h pour ${nbPieds} pieds${estim ? ' (estimation)' : ''}`, cost: hImpr * p.machine_h });
     if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(SbatReel,50)) });
     // Cloche/cadre : seuil en surface MAQUETTE (250 cm² = 0,025 m² — plus léchelle est grande, plus cest cher)
     const trancheMaquetteCm2 = Math.floor((Sbase * 10000) / 250);
@@ -2302,70 +2317,93 @@
   function _pitchEsc(e){ if(e.key === 'Escape') pitchClose(); }
 
   // ---------- Suivi heures réelles ----------
+  // ---------- Suivi : chronomètres par tâche ----------
+  function timerKey(cat, label){ return cat + '|' + label.replace(/\s*\(.*?\)\s*/g,' ').replace(/\s+/g,' ').trim(); }
+  function timerMs(t){ return (t ? (t.ms || 0) + (t.start ? Date.now() - t.start : 0) : 0); }
+  function fmtChrono(ms){ const m = Math.floor(ms/60000); return Math.floor(m/60) + ' h ' + String(m%60).padStart(2,'0'); }
+
   function renderSuiviTab(){
     const data = computeAndRenderResult();
-    const { dessin, decoupe, assemblage, peinture, p, fmtH } = data;
+    const { dessin, decoupe, assemblage, peinture, fmtH } = data;
     const sumH = arr => arr.reduce((s,t) => s + t.heures, 0);
-
-    const cats = [
-      { id:'dessin',     label:'Conception & dessin',       heures: sumH(dessin),     taux: p.taux_dessin    * (1+p.charges/100) },
-      { id:'decoupe',    label:'Préparation impression & découpe', heures: sumH(decoupe),    taux: p.taux_decoupe   * (1+p.charges/100) },
-      { id:'assemblage', label:'Assemblage',                heures: sumH(assemblage), taux: p.taux_assemblage* (1+p.charges/100) },
-      { id:'peinture',   label:'Peinture & finition',       heures: sumH(peinture),   taux: p.taux_peinture  * (1+p.charges/100) },
-    ].filter(c => c.heures > 0);
-
+    if (!state.timers) state.timers = {};
     if (!state.suivi) state.suivi = {};
-    const totalDevis = cats.reduce((s,c) => s + c.heures, 0);
+    const cats = [
+      { id:'dessin',     label:'Conception & dessin',              taches: dessin },
+      { id:'decoupe',    label:'Préparation impression & bois',    taches: decoupe },
+      { id:'assemblage', label:'Assemblage',                       taches: assemblage },
+      { id:'peinture',   label:'Peinture & finition',              taches: peinture },
+    ].filter(c => c.taches.length);
 
-    const rows = cats.map(c => {
-      const reel = state.suivi[c.id] != null ? state.suivi[c.id] : '';
-      const reelVal = parseFloat(reel) || 0;
-      const ecart = reel !== '' ? reelVal - c.heures : null;
-      const pct = c.heures > 0 ? Math.min(reelVal / c.heures, 2) : 0;
-      const cls = ecart === null ? 'neutral' : (ecart <= 0 ? 'ok' : 'over');
-      const ecartTxt = ecart === null ? '—' : (ecart > 0 ? '+' : '') + ecart.toFixed(1) + ' h';
-      return `<tr>
-        <td>${c.label}</td>
-        <td style="text-align:right;">${fmtH(c.heures)}</td>
-        <td style="text-align:center;">
-          <input class="suivi-input" type="number" step="0.5" min="0" placeholder="0"
-            value="${reel}" onchange="suiviUpdate('${c.id}',this.value)"
-            oninput="suiviUpdate('${c.id}',this.value)">
-        </td>
-        <td style="text-align:right;">
-          <span class="suivi-ecart ${cls}" id="suivi_ecart_${c.id}">${ecartTxt}</span>
-        </td>
-        <td style="width:80px;">
-          <div class="suivi-bar-wrap"><div class="suivi-bar ${cls}" id="suivi_bar_${c.id}" style="width:${(pct*100).toFixed(0)}%"></div></div>
-        </td>
-      </tr>`;
+    let totDevis = 0, totReel = 0;
+    const blocks = cats.map(c => {
+      const hDevis = sumH(c.taches); totDevis += hDevis;
+      let msCat = 0;
+      const rows = c.taches.map(t => {
+        const k = timerKey(c.id, t.label), tm = state.timers[k], ms = timerMs(tm); msCat += ms;
+        const run = !!(tm && tm.start);
+        return `<tr class="${run ? 'chrono-run' : ''}">
+          <td>${escapeHtml(t.label)}</td>
+          <td style="text-align:right;">${fmtH(t.heures)}</td>
+          <td style="text-align:right;"><span class="chrono" data-key="${escapeHtml(k)}" title="Cliquer pour corriger">${fmtChrono(ms)}</span></td>
+          <td style="text-align:center;"><button class="btn chrono-btn" data-key="${escapeHtml(k)}">${run ? '⏸ Pause' : '▶ Démarrer'}</button></td>
+        </tr>`;
+      }).join('');
+      const hReel = msCat / 3600000; totReel += hReel;
+      state.suivi[c.id] = msCat ? Math.round(hReel*100)/100 : null;
+      const ec = hReel - hDevis, cls = !msCat ? 'neutral' : (ec <= 0 ? 'ok' : 'over');
+      return `<tr class="suivi-cat"><td>${c.label}</td><td style="text-align:right;">${fmtH(hDevis)}</td>
+          <td style="text-align:right;">${msCat ? fmtChrono(msCat) : '—'}</td>
+          <td style="text-align:center;"><span class="suivi-ecart ${cls}">${msCat ? (ec>0?'+':'') + ec.toFixed(1) + ' h' : ''}</span></td></tr>` + rows;
     }).join('');
-
-    const totalReel = cats.reduce((s,c) => s + (parseFloat(state.suivi[c.id]) || 0), 0);
-    const totalEcart = totalDevis > 0 && Object.keys(state.suivi).length > 0
-      ? (totalReel - totalDevis) : null;
-    const totalEcartTxt = totalEcart === null ? '—'
-      : (totalEcart > 0 ? '+' : '') + totalEcart.toFixed(1) + ' h';
-
-    const html = `<p class="suivi-intro">Saisir les heures réellement passées pour comparer avec l'estimatif. Les données sont sauvegardées avec le projet.</p>
+    const ecT = totReel - totDevis;
+    document.getElementById('suiviContainer').innerHTML =
+      `<p class="suivi-intro">Lance le chrono de la tâche sur laquelle tu travailles (un seul tourne à la fois). Les temps sont enregistrés avec le projet, sur l'appareil et sur le Drive. Clique sur un temps pour le corriger à la main.</p>
       <table class="suivi-table">
-        <tr>
-          <th>Poste</th><th style="text-align:right;">Devisé</th>
-          <th style="text-align:center;">Réel (h)</th>
-          <th style="text-align:right;">Écart</th>
-          <th></th>
-        </tr>
-        ${rows}
-        <tr class="suivi-total">
-          <td>Total MO</td>
-          <td style="text-align:right;">${fmtH(totalDevis)}</td>
-          <td style="text-align:center;">${totalReel > 0 ? fmtH(totalReel) : '—'}</td>
-          <td style="text-align:right;">${totalEcartTxt}</td>
-          <td></td>
-        </tr>
+        <tr><th>Tâche</th><th style="text-align:right;">Devisé</th><th style="text-align:right;">Réel</th><th></th></tr>
+        ${blocks}
+        <tr class="suivi-total"><td>Total main d'œuvre</td><td style="text-align:right;">${fmtH(totDevis)}</td>
+          <td style="text-align:right;">${totReel ? fmtChrono(totReel*3600000) : '—'}</td>
+          <td style="text-align:center;">${totReel ? (ecT>0?'+':'') + ecT.toFixed(1) + ' h' : ''}</td></tr>
       </table>`;
-    document.getElementById('suiviContainer').innerHTML = html;
+    document.querySelectorAll('#suiviContainer .chrono-btn').forEach(b => b.addEventListener('click', () => chronoToggle(b.dataset.key)));
+    document.querySelectorAll('#suiviContainer .chrono').forEach(el => el.addEventListener('click', () => chronoEdit(el.dataset.key)));
   }
+
+  function chronoSave(){ readFormIntoState(); libAdd(state); updateChronoChip(); }
+  function chronoToggle(key){
+    if (!state.timers) state.timers = {};
+    const t = state.timers[key] || (state.timers[key] = { ms:0, start:null });
+    if (t.start) { t.ms += Date.now() - t.start; t.start = null; }
+    else {
+      Object.values(state.timers).forEach(o => { if (o.start) { o.ms += Date.now() - o.start; o.start = null; } });
+      t.start = Date.now();
+    }
+    chronoSave(); renderSuiviTab();
+  }
+  function chronoEdit(key){
+    const t = (state.timers || {})[key]; const cur = timerMs(t) / 3600000;
+    const v = prompt('Temps passé sur cette tâche (en heures, ex. 2.5) :', cur ? cur.toFixed(2) : '0');
+    if (v === null) return;
+    const h = parseFloat(String(v).replace(',', '.'));
+    if (isNaN(h) || h < 0) return;
+    state.timers[key] = { ms: Math.round(h * 3600000), start: (t && t.start) ? Date.now() : null };
+    chronoSave(); renderSuiviTab();
+  }
+  function runningTimer(){
+    const e = Object.entries((state && state.timers) || {}).find(([k,o]) => o.start);
+    return e ? { key:e[0], ms: timerMs(e[1]) } : null;
+  }
+  function updateChronoChip(){
+    const chip = document.getElementById('chronoChip'); if (!chip) return;
+    const r = runningTimer();
+    chip.style.display = r ? '' : 'none';
+    if (r) chip.textContent = '⏱ ' + fmtChrono(r.ms) + ' · ' + r.key.split('|')[1];
+  }
+  setInterval(() => {
+    updateChronoChip();
+    document.querySelectorAll('#suiviContainer .chrono').forEach(el => { const t = (state.timers||{})[el.dataset.key]; if (t && t.start) el.textContent = fmtChrono(timerMs(t)); });
+  }, 15000);
 
   function suiviUpdate(catId, val){
     if (!state.suivi) state.suivi = {};
@@ -2690,6 +2728,49 @@
     const b = document.getElementById('btnSave');
     b.textContent = '✓ Enregistré';
     setTimeout(() => { b.textContent = '💾 Enregistrer'; }, 1800);
+  });
+</script>
+<script>
+  // Chip chrono : ouvre le suivi
+  document.getElementById('chronoChip').addEventListener('click', () => {
+    toggleLibrary(false); showStep(6);
+    const t = document.querySelector('.devis-tab[data-tab="suivi"]'); if (t) t.click();
+  });
+  updateChronoChip();
+
+  // ---------- Lecture des STL : volume → filament et temps d'impression ----------
+  function stlVolumeCm3(buf){
+    const dv = new DataView(buf);
+    let vol = 0;
+    const tri = (a,b,c) => { vol += (a[0]*(b[1]*c[2]-b[2]*c[1]) - a[1]*(b[0]*c[2]-b[2]*c[0]) + a[2]*(b[0]*c[1]-b[1]*c[0])) / 6; };
+    const n = buf.byteLength >= 84 ? dv.getUint32(80, true) : 0;
+    if (buf.byteLength === 84 + n * 50 && n > 0) {
+      for (let i = 0, o = 84; i < n; i++, o += 50) {
+        const v = k => [dv.getFloat32(o+12+k*12,true), dv.getFloat32(o+16+k*12,true), dv.getFloat32(o+20+k*12,true)];
+        tri(v(0), v(1), v(2));
+      }
+    } else {
+      const txt = new TextDecoder().decode(buf);
+      const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g; let m, pts = [];
+      while ((m = re.exec(txt))) { pts.push([+m[1], +m[2], +m[3]]); if (pts.length === 3) { tri(pts[0], pts[1], pts[2]); pts = []; } }
+    }
+    return Math.abs(vol) / 1000; // mm³ → cm³
+  }
+  document.getElementById('btnStl').addEventListener('click', () => document.getElementById('stlInput').click());
+  document.getElementById('stlInput').addEventListener('change', async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    const info = document.getElementById('stlInfo');
+    info.textContent = 'Lecture en cours…';
+    let vol = 0;
+    for (const f of files) vol += stlVolumeCm3(await f.arrayBuffer());
+    const p = state.params;
+    const g = Math.round(vol * 1.24 * (p.stl_remplissage || 0.4));   // PLA ≈ 1,24 g/cm³
+    const h = Math.max(1, Math.round(g / (p.stl_g_par_h || 60)));
+    document.getElementById('p_impr_grammes').value = g;
+    document.getElementById('p_impr_heures').value = h;
+    info.textContent = `${files.length} fichier${files.length>1?'s':''} · ${vol.toFixed(0)} cm³ de volume · ≈ ${g} g de filament · ≈ ${h} h d'impression (hors pieds). Les fichiers STL doivent être à l'échelle de la maquette, en mm.`;
+    readFormIntoState();
+    e.target.value = '';
   });
 </script>
 </body>
