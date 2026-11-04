@@ -772,6 +772,16 @@
         <div class="field"><label for="param_plans_papier_m2">Mise au propre plans papier / relevé</label><input type="number" id="param_plans_papier_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
       </div>
 
+      <h3>Fabrication (heures)</h3>
+      <div class="field-grid">
+        <div class="field"><label for="param_bois_base_h">Travail du bois — base</label><input type="number" id="param_bois_base_h" step="0.5"><span class="unit">h (si jupe)</span></div>
+        <div class="field"><label for="param_bois_par_m_h">Travail du bois — par mètre</label><input type="number" id="param_bois_par_m_h" step="0.1"><span class="unit">h / m de périmètre maquette</span></div>
+        <div class="field"><label for="param_assemblage_base_h">Assemblage — base</label><input type="number" id="param_assemblage_base_h" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_assemblage_par_cm2">Assemblage — par cm²</label><input type="number" id="param_assemblage_par_cm2" step="0.0001"><span class="unit">h / cm² de maquette (Bati Tole ≈ 0,0013)</span></div>
+        <div class="field"><label for="param_jardin_base_h">Jardin — base</label><input type="number" id="param_jardin_base_h" step="0.5"><span class="unit">h (tracé, scotch, colle)</span></div>
+        <div class="field"><label for="param_jardin_par_cm2">Jardin — par cm²</label><input type="number" id="param_jardin_par_cm2" step="0.0001"><span class="unit">h / cm² de jardin maquette</span></div>
+      </div>
+
       <h3>Impression 3D</h3>
       <div class="field-grid">
         <div class="field"><label for="param_filament_kg">Filament</label><input type="number" id="param_filament_kg" step="0.5"><span class="unit">€ / kg</span></div>
@@ -866,6 +876,7 @@
     { key:'eclairage_exterieur', label:'Éclairage extérieur',          desc:"Façade, lampadaires, allées éclairées." },
     { key:'mobilier',            label:'Mobilier miniature',           desc:"Ameublement intérieur et/ou extérieur, impression résine." },
     { key:'cloche_plexi',        label:'Cloche de protection plexi',   desc:"Habillage plexiglas pour la présentation.", requiresJardin:true },
+    { key:'pieds',               label:'Pieds de maquette imprimés',   desc:"Pieds dessinés et imprimés (grandes maquettes, ≈ 12 h d'impression)." },
     { key:'cadre_metal',         label:'Cadre / socle métal',          desc:"Support et encadrement de présentation.", requiresJardin:true },
   ];
 
@@ -884,8 +895,9 @@
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
       dessin_brut_base:4, dessin_brut_m2:0.05, dessin_std_base:6, dessin_std_m2:0.10, dessin_det_base:8, dessin_det_m2:0.20,
-      plans_papier_m2:0.04,
-      filament_kg:25, machine_h:1, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.03,
+      plans_papier_m2:0.05,
+      filament_kg:25, machine_h:1,
+      bois_base_h:5, bois_par_m_h:4.5, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
       polystyrene:8, plateau:20, enduit:5, flocage:6, gravier:6.5, vernis:19, bois_jupe:12, tasseaux:8,
       plastique_forfait:500, plastique_tranche:50, plastique_seuil:500,
       mobilier_tranche:30,
@@ -995,7 +1007,7 @@
     p.vernis = parseFloat(document.getElementById('param_vernis').value) || 0;
     p.bois_jupe = parseFloat(document.getElementById('param_bois_jupe').value) || 0;
     p.tasseaux = parseFloat(document.getElementById('param_tasseaux').value) || 0;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1053,7 +1065,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1150,25 +1162,26 @@
     const nbEtages   = Math.max(1, parseInt(state.projet.etages) || 1);
     const plancher   = SbatReel * nbEtages;
     const niv        = state.projet.niveau || 'standard';
+    const fEch = Math.sqrt(50 / (ev || 50));   // plus l'échelle est grande (1:10), plus il y a de détails à dessiner
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
       forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(SbatReel,50) });
-      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: arr1(p.plans_papier_m2 * plancher) });
+      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: arr1(p.plans_papier_m2 * plancher * fEch) });
     } else if (state.projet.plans2d === 'papier'){
-      dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher) });
+      dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher * fEch) });
     }
-    dessin.push({ label:`Modélisation 3D — niveau ${NIV[0]} (${plancher.toFixed(0)} m² de plancher)`, heures: arr1(p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) });
+    dessin.push({ label:`Modélisation 3D — niveau ${NIV[0]} (${plancher.toFixed(0)} m² de plancher)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
     if (state.projet.ajust_dessin) dessin.push({ label:'Ajustement complexité', heures: state.projet.ajust_dessin });
 
     // --- Impression 3D (temps machine + filament) ---
     const surfImpr  = (longueur/ev*100) * (largeur/ev*100) * nbEtages;   // cm² de maquette à imprimer (emprise × étages)
-    const hImpr     = parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2);
+    const hImpr     = (parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2)) + (o.pieds ? 12 : 0);
     const gImpr     = parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2);
     const estim     = !(parseFloat(state.projet.impr_heures) && parseFloat(state.projet.impr_grammes));
     decoupe.push({ label:'Préparation impression (STL, plateaux, surveillance, reprises)', heures: arr1(p.prep_impr_base + p.prep_impr_par_h * hImpr) });
     if (o.eclairage_interieur){
-      dessin.push({ label:'Schéma élec. intérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
-      dessin.push({ label:'Dessin passage fils (intérieur)', heures: 2 + 1*tranche(SbatReel,50) });
+      dessin.push({ label:'Schéma élec. intérieur (circuit indépendant)', heures: 4 + 0.5*tranche(SbatReel,50) });
+      dessin.push({ label:'Dessin passage fils et logements dans les murs', heures: 3 + 1*tranche(SbatReel,50) });
     }
     if (o.eclairage_exterieur){
       dessin.push({ label:'Schéma élec. extérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
@@ -1176,28 +1189,29 @@
     }
     if (o.murs_ouvrages) dessin.push({ label:'Murs ouvragés', heures: 2 });
     if (o.mobilier) dessin.push({ label:'Dessin cuisine (mobilier)', heures: 5 });
+    if (o.pieds) dessin.push({ label:'Dessin des pieds de maquette', heures: 2.5 });
 
-    // --- Découpe ---
+    // --- Travail du bois (jupe) — calé sur Bati Tole : ≈ 21 h pour 3,6 m de périmètre ---
     if (Ccond){
-      decoupe.push({ label:'Découpe jupe', heures: 1 + 0.5*tranche(SbaseReel,50) });
-      decoupe.push({ label:'Impression supports jupe', heures: 1 + 0.5*tranche(SbaseReel,50) });
+      decoupe.push({ label:`Travail du bois : jupe 45°, médium 3/6 mm, tasseaux, ponçage, vissage (${perimetre.toFixed(1)} m)`, heures: arr1(p.bois_base_h + p.bois_par_m_h * perimetre) });
     }
 
-    // --- Assemblage ---
-    if (Ccond) assemblage.push({ label:'Assemblage plateau + jupe', heures: 3 });
-    assemblage.push({ label:'Assemblage maquette 3D', heures: 6 + 0.5*tranche(SbatReel,50) });
+    // --- Assemblage (dépend de la taille de la MAQUETTE) ---
+    const SbatCm2Maq = Sbat * 10000;
+    const SjarCm2Maq = Sjardin * 10000;
+    assemblage.push({ label:`Assemblage maquette 3D (${SbatCm2Maq.toFixed(0)} cm²)`, heures: arr1(p.assemblage_base_h + p.assemblage_par_cm2 * SbatCm2Maq * nbEtages) });
     if (o.jardin_amenage){
-      assemblage.push({ label:'Assemblage jardin', heures: 2 + 1*tranche(SjardinReel,50) });
-      assemblage.push({ label:'Gravillonnage allées', heures: 2 + 1*tranche(SjardinReel,50) });
+      assemblage.push({ label:'Jardin : tracé, scotch, colle, flocage, gravier', heures: arr1(p.jardin_base_h + p.jardin_par_cm2 * SjarCm2Maq) });
     }
-    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 3 + 1*tranche(SbatReel,50) });
-    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 2 + 0.5*tranche(SbatReel,50) });
+    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 6 + 1.5*tranche(SbatReel,50) });
+    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 5 + 1*tranche(SbatReel,50) });
 
-    // --- Peinture ---
+    // --- Peinture / finition ---
+    if (Ccond) peinture.push({ label:'Vernis de la jupe (4 couches)', heures: 2 });
     if (o.jardin_amenage){
       peinture.push({ label:'Peinture et colle diverses', heures: 1 });
       const hasPlantes = state.materiaux.some(m => /arbres|fleurs|plantes/i.test(m.nom) && (parseFloat(m.quantite)||0) > 0);
-      if (hasPlantes) peinture.push({ label:'Pose plantes et éléments', heures: 3 + 0.25*tranche(SjardinReel,50) });
+      if (hasPlantes) peinture.push({ label:'Pose plantes et éléments', heures: arr1(1 + 0.0001 * SjarCm2Maq) });
     }
 
     // --- Forfaits directs ---
