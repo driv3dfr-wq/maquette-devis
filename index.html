@@ -474,6 +474,7 @@
 .choix{margin:16px 0 8px;}
 .choix h4{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px;}
 .choix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;}
+@media (min-width:600px){.choix-grid.six{grid-template-columns:repeat(3,1fr);}}
 .choix-card{border:1px solid #d9d4c8;border-radius:8px;padding:12px;background:#fff;}
 .choix-card.actif{border:2px solid var(--blue,#1B3A5C);}
 .choix-card .cc-nom{font-weight:700;font-size:14px;}
@@ -1979,7 +1980,8 @@
     { cle:'brut',     nom:'Brut',     desc:'Volumes, façades et ouvertures, rendu blanc.', niveau:'brut' },
     { cle:'standard', nom:'Standard', desc:'Menuiseries, toitures et teintes.', niveau:'standard' },
     { cle:'detaille', nom:'Détaillé', desc:'Modénatures, garde-corps, finitions fines.', niveau:'detaille' },
-    { cle:'complet',  nom:'Tout compris', desc:'Détaillé avec jardin, mobilier et éclairages intérieur et extérieur.', niveau:'detaille', toutes:true }
+    { cle:'complet',  nom:'Paysagé', desc:'Détaillé avec jardin, mobilier et éclairages intérieur et extérieur.', niveau:'detaille', toutes:true },
+    { cle:'total',    nom:'Tout compris', desc:'Paysagé avec cloche plexiglas et cadre métal, prête à exposer.', niveau:'detaille', toutes:true, expo:true }
   ];
   function prixClient(d){ return d.totalAvantRemise; }
   function renderChoix(fmt){
@@ -2000,8 +2002,9 @@
             if (k === 'jardin_amenage' && !(parseFloat(st.dimensions.jardin) > 0)) return;
             st.options[k] = true;
           });
+          if (f.expo){ st.options.cloche_plexi = true; st.options.cadre_metal = true; }
         });
-        return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.toutes ? 'Toutes options' : 'Maquette seule' };
+        return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.expo ? 'Toutes options, cloche et cadre' : f.toutes ? 'Jardin, mobilier, éclairages' : 'Maquette seule' };
       });
       // Cinquième carte : le devis tel qu'il est (niveau + options cochées), rangée selon son prix
       const fCur = FORMULES.find(f => !f.toutes && f.niveau === (pr.niveau || 'standard'));
@@ -2018,7 +2021,7 @@
       }
       const cartes = liste.map(c => `<div class="choix-card${c.actif ? ' actif' : ''}"><div class="cc-nom">${c.nom}</div><div class="cc-desc">${c.desc}</div>
           <div class="cc-prix">${fmt(c.prix)}</div><div class="cc-sub">${c.sub}</div></div>`).join('');
-      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div></div>`;
+      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid${liste.length >= 6 ? ' six' : ''}">${cartes}</div></div>`;
     }
     if (eCk.checked){
       const ech = [50, 75, 100];
