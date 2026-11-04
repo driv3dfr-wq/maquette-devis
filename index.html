@@ -663,6 +663,19 @@
         </div>
       </div>
 
+      <h3>Remise commerciale</h3>
+      <div class="field-grid">
+        <div class="field">
+          <label for="p_remise">Remise accordée</label>
+          <input type="number" id="p_remise" min="0" step="10" placeholder="0">
+          <span class="unit">visible sur le devis client</span>
+        </div>
+        <div class="field">
+          <label for="p_remise_type">En</label>
+          <select id="p_remise_type"><option value="eur">€</option><option value="pct">%</option></select>
+        </div>
+      </div>
+
       <h3>Déplacement</h3>
       <div class="field-grid">
         <div class="field full checkbox-line">
@@ -955,6 +968,7 @@
     return { Sbat, Sjardin, Sbase: Sbat + Sjardin };
   }
   function tranche(surface, taille){ return Math.floor((surface||0) / taille); }
+  function calcRemise(total){ const r = parseFloat(state.projet.remise) || 0; return Math.min(total, state.projet.remise_type === 'pct' ? total * r / 100 : r); }
   function arr1(h){ return Math.round(h * 2) / 2; } // arrondi à la demi-heure
 
   // ---------- Navigation ----------
@@ -989,6 +1003,8 @@
     state.projet.plans2d = document.getElementById('p_plans2d').value;
     state.projet.deplacement = document.getElementById('p_deplacement').checked;
     state.projet.distance = document.getElementById('p_distance').value;
+    state.projet.remise = parseFloat(document.getElementById('p_remise').value) || 0;
+    state.projet.remise_type = document.getElementById('p_remise_type').value;
     state.projet.niveau = document.getElementById('p_niveau').value || 'standard';
     state.projet.impr_heures = document.getElementById('p_impr_heures').value;
     state.projet.impr_grammes = document.getElementById('p_impr_grammes').value;
@@ -1058,6 +1074,8 @@
     document.getElementById('p_deplacement').checked = state.projet.deplacement;
     document.getElementById('p_distance_wrap').style.display = state.projet.deplacement ? 'flex' : 'none';
     document.getElementById('p_distance').value = state.projet.distance;
+    document.getElementById('p_remise').value = state.projet.remise || '';
+    document.getElementById('p_remise_type').value = state.projet.remise_type || 'eur';
     document.getElementById('p_niveau').value = state.projet.niveau || 'standard';
     document.getElementById('p_impr_heures').value = state.projet.impr_heures || '';
     document.getElementById('p_impr_grammes').value = state.projet.impr_grammes || '';
@@ -1291,7 +1309,9 @@
     const baseMargeMatForf = coutMateriaux + coutForfaits + charges;
     const marge = baseMargeMatForf * (p.marge/100);
     const baseMarge = sousTotal + charges; // pour affichage sous-total avec charges
-    const totalHT = coutMO + baseMargeMatForf + marge;
+    const totalAvantRemise = coutMO + baseMargeMatForf + marge;
+    const remise = calcRemise(totalAvantRemise);
+    const totalHT = totalAvantRemise - remise;
     const tva = totalHT * (p.tva/100);
     const totalTTC = totalHT + tva;
 
@@ -1302,7 +1322,7 @@
     return { dessin, decoupe, assemblage, peinture, forfaits, matAuto, matCompte,
              coutDessin, coutDecoupe, coutAssemblage, coutPeinture,
              coutForfaits, coutMateriaux, coutMO, charges, sousTotal,
-             baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH };
+             baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH, remise, totalAvantRemise };
   }
 
   // ---------- File import / export ----------
@@ -1634,7 +1654,9 @@
     const kMatForf          = (1 + p.charges/100) * (1 + p.marge/100);
     const matClient         = coutMateriaux * kMatForf;
     const forfClient        = coutForfaits  * kMatForf;
-    const totalHTClient     = coutMOClient + matClient + forfClient;
+    const avantRemiseClient = coutMOClient + matClient + forfClient;
+    const remiseClient      = calcRemise(avantRemiseClient);
+    const totalHTClient     = avantRemiseClient - remiseClient;
     const tvaClient         = totalHTClient * (p.tva/100);
     const totalTTCClient    = totalHTClient + tvaClient;
 
@@ -1652,12 +1674,16 @@
       ${catRow('Prestations (impression 3D, socle, options…)', forfClient)}
     </table>`;
 
-    const summaryHTML = (p.tva > 0)
+    const remiseLbl = state.projet.remise_type === 'pct' ? ` (${state.projet.remise} %)` : '';
+    const remiseHTML = remiseClient > 0
+      ? `<tr><td class="label">Sous-total</td><td class="val">${fmt(avantRemiseClient)}</td></tr>` +
+        `<tr><td class="label">Remise commerciale${remiseLbl}</td><td class="val">− ${fmt(remiseClient)}</td></tr>` : '';
+    const summaryHTML = remiseHTML + ((p.tva > 0)
       ? `<tr><td class="label">Total HT</td><td class="val">${fmt(totalHTClient)}</td></tr>` +
         `<tr><td class="label">TVA (${p.tva} %)</td><td class="val">${fmt(tvaClient)}</td></tr>` +
         `<tr class="total"><td class="label">Total TTC</td><td class="val">${fmt(totalTTCClient)}</td></tr>`
       : `<tr class="total"><td class="label">Total net à payer</td><td class="val">${fmt(totalHTClient)}</td></tr>` +
-        `<tr><td class="label" colspan="2" style="font-size:12px;font-style:italic;">${MENTION_TVA}</td></tr>`;
+        `<tr><td class="label" colspan="2" style="font-size:12px;font-style:italic;">${MENTION_TVA}</td></tr>`);
 
     document.getElementById('clientBreakdownContainer').innerHTML = headerHTML + breakdownHTML;
     const conditionsHTML = `<tr><td class="label" colspan="2" style="font-size:12px;color:var(--ink-soft);padding-top:14px;line-height:1.5;">
@@ -1738,7 +1764,7 @@
     const { dessin, decoupe, assemblage, peinture, forfaits, matAuto, matCompte,
             coutDessin, coutDecoupe, coutAssemblage, coutPeinture,
             coutForfaits, coutMateriaux, coutMO, charges, sousTotal,
-            baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH } = data;
+            baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH, remise, totalAvantRemise } = data;
     const cf = 1 + p.charges / 100;
     const sumH = arr => arr.reduce((s,t) => s + t.heures, 0);
     const sumC = arr => arr.reduce((s,t) => s + t.cost, 0);
@@ -1810,6 +1836,7 @@
       `<tr><td class="label">Forfaits</td><td class="val">${fmt(coutForfaits)}</td></tr>` +
       `<tr><td class="label">Charges (${p.charges}% sur mat+forfaits)</td><td class="val">${fmt(charges)}</td></tr>` +
       `<tr><td class="label">Marge (${p.marge}% sur mat+forfaits+charges)</td><td class="val">${fmt(marge)}</td></tr>` +
+      (remise > 0 ? `<tr><td class="label">Avant remise</td><td class="val">${fmt(totalAvantRemise)}</td></tr><tr><td class="label">Remise commerciale</td><td class="val">− ${fmt(remise)}</td></tr>` : '') +
       `<tr><td class="label">Total HT</td><td class="val">${fmt(totalHT)}</td></tr>` +
       ((p.tva > 0)
         ? `<tr><td class="label">TVA (${p.tva}%)</td><td class="val">${fmt(tva)}</td></tr>` +
