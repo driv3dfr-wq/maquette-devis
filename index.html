@@ -105,7 +105,9 @@
   .step h3:first-of-type{ margin-top: 0; }
   .step .hint{ color: var(--ink-soft); font-size: 13px; margin: 0 0 22px 0; max-width: 560px; }
 
-  .field-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px 24px; }
+  .field-grid{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
+  .field-grid > *, .option-grid > *{ min-width:0; }
+  .field select, .field input, .field .btn{ max-width:100%; }
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field.full{ grid-column: 1 / -1; }
   .field label{ font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
@@ -213,7 +215,7 @@
   .lib-empty strong{ display:block; font-family:'Architects Daughter',cursive; font-size:22px; color:var(--ink); margin-bottom:8px; }
 
   @media (max-width: 640px){
-    .field-grid, .option-grid{ grid-template-columns: 1fr; }
+    .field-grid, .option-grid{ grid-template-columns: minmax(0, 1fr); }
     .sheet{ padding: 22px; }
     .ruler li .label{ display:none; }
   }
@@ -341,7 +343,9 @@
 
 
   /* ---------- Onglets step 6 ---------- */
-  .devis-tabs{ display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--ink); }
+  .devis-tabs{ display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--ink); overflow-x:auto; scrollbar-width:none; }
+  .devis-tabs::-webkit-scrollbar{ display:none; }
+  @media (max-width:520px){ .devis-tab{ padding:9px 11px; font-size:12px; white-space:nowrap; flex:0 0 auto; } }
   .devis-tab{
     font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600;
     padding:9px 20px; border:none; border-bottom:none; background:transparent;
@@ -1434,6 +1438,7 @@
     document.getElementById('curStep').textContent = n > 2 ? n - 1 : n;
     document.getElementById('btnPrev').disabled = (n === 1);
     document.getElementById('btnNext').textContent = (n === totalSteps) ? '📄 Devis en PDF' : 'Suivant →';
+    { const pb = document.getElementById('printFloatBtn'); if (pb && n !== totalSteps) pb.style.display = 'none'; }
     if (n === 1) updateSurfaceDisplay();
     if (n === 6){ renderClientView(); }
     currentStep = n;
