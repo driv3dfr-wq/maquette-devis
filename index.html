@@ -803,7 +803,7 @@
       <div class="field-grid">
         <div class="field"><label for="param_pied_h_machine">Pieds — impression par pied</label><input type="number" id="param_pied_h_machine" step="0.5"><span class="unit">h machine (grande maquette)</span></div>
         <div class="field"><label for="param_stl_remplissage">STL — part de matière réelle</label><input type="number" id="param_stl_remplissage" step="0.05"><span class="unit">du volume plein (parois + remplissage)</span></div>
-        <div class="field"><label for="param_stl_g_par_h">STL — débit imprimante</label><input type="number" id="param_stl_g_par_h" step="1"><span class="unit">g / h (Bati Tole ≈ 60)</span></div>
+        <div class="field"><label for="param_stl_g_par_h">STL — débit imprimante</label><input type="number" id="param_stl_g_par_h" step="1"><span class="unit">g / h (Bati Tole ≈ 65)</span></div>
       </div>
 
       <h3>Forfaits</h3>
@@ -904,12 +904,19 @@
 
   const MENTION_TVA = 'TVA non applicable, art. 293 B du CGI';
 
+  // Met à jour les anciennes valeurs par défaut (calage STL sur Bati Tole : 45 STL → 11 kg réels, ≈ 168 h)
+  function majParams(p){
+    if (p.stl_remplissage === 0.4) p.stl_remplissage = 0.48;
+    if (p.stl_g_par_h === 60) p.stl_g_par_h = 65;
+    return p;
+  }
+
   function defaultParams(){
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
       dessin_brut_base:4, dessin_brut_m2:0.05, dessin_std_base:6, dessin_std_m2:0.10, dessin_det_base:8, dessin_det_m2:0.20,
       plans_papier_m2:0.05,
-      filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.4, stl_g_par_h:60,
+      filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
       bois_base_h:5, bois_par_m_h:4.5, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
       polystyrene:8, plateau:20, enduit:5, flocage:6, gravier:6.5, vernis:19, bois_jupe:12, tasseaux:8,
       plastique_forfait:500, plastique_tranche:50, plastique_seuil:500,
@@ -1511,7 +1518,7 @@
     if (match) raw = match[1].trim();
     try {
       const saved = JSON.parse(raw);
-      if (saved.params) state.params = Object.assign(defaultParams(), saved.params);
+      if (saved.params) state.params = majParams(Object.assign(defaultParams(), saved.params));
       if (saved.materiaux && Array.isArray(saved.materiaux)) state.materiaux = saved.materiaux;
       writeStateIntoForm();
       syncAllRates();
@@ -2242,7 +2249,7 @@
     reader.onload = (e) => {
       try {
         const saved = JSON.parse(e.target.result);
-        if (saved.params) state.params = Object.assign(defaultParams(), saved.params);
+        if (saved.params) state.params = majParams(Object.assign(defaultParams(), saved.params));
         if (saved.materiaux && Array.isArray(saved.materiaux)) state.materiaux = saved.materiaux;
         writeStateIntoForm();
         syncAllRates();
@@ -2272,7 +2279,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (saved.params) state.params = Object.assign(defaultParams(), saved.params);
+      if (saved.params) state.params = majParams(Object.assign(defaultParams(), saved.params));
       if (saved.materiaux && Array.isArray(saved.materiaux)) state.materiaux = saved.materiaux;
     } catch(e){ /* silencieux */ }
   }
@@ -2764,8 +2771,8 @@
     let vol = 0;
     for (const f of files) vol += stlVolumeCm3(await f.arrayBuffer());
     const p = state.params;
-    const g = Math.round(vol * 1.24 * (p.stl_remplissage || 0.4));   // PLA ≈ 1,24 g/cm³
-    const h = Math.max(1, Math.round(g / (p.stl_g_par_h || 60)));
+    const g = Math.round(vol * 1.24 * (p.stl_remplissage || 0.48));   // PLA ≈ 1,24 g/cm³
+    const h = Math.max(1, Math.round(g / (p.stl_g_par_h || 65)));
     document.getElementById('p_impr_grammes').value = g;
     document.getElementById('p_impr_heures').value = h;
     info.textContent = `${files.length} fichier${files.length>1?'s':''} · ${vol.toFixed(0)} cm³ de volume · ≈ ${g} g de filament · ≈ ${h} h d'impression (hors pieds). Les fichiers STL doivent être à l'échelle de la maquette, en mm.`;
