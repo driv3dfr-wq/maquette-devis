@@ -481,6 +481,15 @@
 .choix-card .cc-prix{font-size:17px;font-weight:700;}
 .choix-card .cc-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
 @media print{.no-print{display:none !important;}.choix-card{break-inside:avoid;}}
+.badge-relance{background:#b03a2e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;}
+.lib-card.a-relancer{border-color:#b03a2e;}
+.lc-statut{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.lc-statut select{font-size:12px;padding:4px 6px;border:1.5px solid;border-radius:6px;background:#fff;font-weight:600;}
+.btn.relance{font-size:12px;padding:4px 10px;border-color:#b03a2e;color:#b03a2e;}
+.facture-bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:16px;}
+.fb-onglets{display:flex;gap:6px;}
+.fb-ac{font-size:13px;color:var(--ink-soft);display:flex;gap:6px;align-items:center;}
+.fb-ac input{width:120px;padding:4px 6px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -609,6 +618,7 @@
         <div class="field"><label for="p_nom">Nom du projet</label><input type="text" id="p_nom" placeholder="Ex. Villa Moreau"></div>
         <div class="field"><label for="p_numero_devis">N° de devis</label><input type="text" id="p_numero_devis" placeholder="Ex. MQ-2026-001"></div>
         <div class="field"><label for="p_date_devis">Date du devis</label><input type="date" id="p_date_devis"></div>
+        <div class="field"><label for="p_statut">Statut</label><select id="p_statut"></select></div>
         <div class="field"><label for="p_client">Client</label><input type="text" id="p_client" placeholder="Ex. M. et Mme Moreau"></div>
         <div class="field"><label for="p_adresse">Adresse client</label><input type="text" id="p_adresse" placeholder="Ex. 12 rue des Lilas, 75001 Paris"></div>
         <div class="field"><label for="p_email">E-mail client</label><input type="email" id="p_email" placeholder="contact@exemple.fr"></div>
@@ -787,6 +797,8 @@
 
       <h3>Mentions du devis</h3>
       <div class="field-grid">
+        <div class="field"><label for="param_nom_legal">Nom de l'entreprise</label><input type="text" id="param_nom_legal" placeholder="Ex. Prénom Nom EI — D-RIV3D Création"><span class="unit">obligatoire sur les factures</span></div>
+        <div class="field"><label for="param_adresse_atelier">Adresse de l'atelier</label><input type="text" id="param_adresse_atelier" placeholder="Rue, code postal, ville"><span class="unit">obligatoire sur les factures</span></div>
         <div class="field"><label for="param_siret">SIRET</label><input type="text" id="param_siret" placeholder="14 chiffres" inputmode="numeric"><span class="unit">affiché en haut du devis</span></div>
         <div class="field"><label for="param_validite_jours">Durée de validité du devis</label><input type="number" id="param_validite_jours" step="1"><span class="unit">jours</span></div>
         <div class="field"><label for="param_acompte_pct">Acompte à la commande</label><input type="number" id="param_acompte_pct" step="5"><span class="unit">% du total (0 = pas d'acompte)</span></div>
@@ -872,6 +884,7 @@
       </div>
       <!-- Vue client -->
       <div id="tabClient" class="tab-pane active">
+        <div id="factureBar" class="facture-bar no-print"></div>
         <div id="clientBreakdownContainer"></div>
         <table class="summary" id="clientSummaryTable"></table>
         <div class="choix-ctrl no-print">
@@ -977,6 +990,53 @@
     if (!st.projet.date_devis) st.projet.date_devis = aujourdhuiISO();
   }
 
+  // ---------- Statuts et relances ----------
+  const STATUTS = [['brouillon','Brouillon','#8a8577'],['envoye','Envoyé','#2a6fb0'],['accepte','Accepté','#2e8b57'],['fabrication','En fabrication','#c77d1a'],['livre','Livré','#6b4fa3'],['paye','Payé','#1f6f3f'],['refuse','Refusé','#b03a2e']];
+  const RELANCE_JOURS = 15;
+  function statutInfo(cle){ return STATUTS.find(x => x[0] === cle) || STATUTS[0]; }
+  function changerStatut(st, cle){
+    cle = cle || 'brouillon';
+    st.projet.statut_dates = st.projet.statut_dates || {};
+    if (st.projet.statut !== cle && !st.projet.statut_dates[cle]) st.projet.statut_dates[cle] = aujourdhuiISO();
+    st.projet.statut = cle;
+  }
+  function joursDepuis(iso){ return iso ? Math.floor((Date.now() - new Date(iso + 'T12:00:00').getTime()) / 86400000) : 0; }
+  // Renvoie le nombre de jours sans réponse si le devis est à relancer, sinon 0
+  function aRelancer(pr){
+    if ((pr.statut || 'brouillon') !== 'envoye') return 0;
+    const d = pr.statut_dates || {};
+    const depuis = d.relance && d.relance > (d.envoye || '') ? d.relance : d.envoye;
+    const j = joursDepuis(depuis);
+    return j >= RELANCE_JOURS ? joursDepuis(d.envoye) : 0;
+  }
+  function mailRelance(pr){
+    const sujet = encodeURIComponent('Votre devis de maquette' + (pr.numero_devis ? ' n° ' + pr.numero_devis : ''));
+    const corps = encodeURIComponent((pr.client ? 'Bonjour ' + pr.client + ',' : 'Bonjour,') + '\n\n' +
+      'Je reviens vers vous au sujet du devis' + (pr.numero_devis ? ' n° ' + pr.numero_devis : '') + (pr.nom ? ' pour la maquette « ' + pr.nom + ' »' : '') + '.\n' +
+      'Avez-vous eu le temps de le regarder ? Je reste à votre disposition pour toute question ou pour ajuster le projet (échelle, niveau de détail, options).\n\n' +
+      'Bien cordialement,\nD-RIV3D Création\ndriv3dfr@gmail.com');
+    window.open('https://mail.google.com/mail/?view=cm&to=' + encodeURIComponent(pr.email || '') + '&su=' + sujet + '&body=' + corps, '_blank');
+  }
+  function majBoutonProjets(){
+    let n = 0;
+    libLoad().forEach(e => { try { if (aRelancer(JSON.parse(e.data).projet)) n++; } catch(err){} });
+    const b = document.getElementById('btnLibrary');
+    if (b) b.innerHTML = '📁 Mes projets' + (n ? ` <span class="badge-relance">${n} à relancer</span>` : '');
+  }
+
+  // ---------- Facture ----------
+  const COMPTEUR_FA_KEY = 'devis_maquette_compteur_facture';
+  function prochaineFacture(){
+    const an = new Date().getFullYear(); let max = 0;
+    const lire = v => { const m = /^FA-(\d{4})-(\d+)$/.exec(String(v || '')); return m && +m[1] === an ? +m[2] : 0; };
+    try { max = lire(localStorage.getItem(COMPTEUR_FA_KEY)); } catch(e){}
+    libLoad().forEach(e => { try { max = Math.max(max, lire(JSON.parse(e.data).projet.numero_facture)); } catch(err){} });
+    const num = 'FA-' + an + '-' + String(max + 1).padStart(3, '0');
+    try { localStorage.setItem(COMPTEUR_FA_KEY, num); } catch(e){}
+    return num;
+  }
+  let vueFacture = false;
+
   // ---------- Conditions en bas du devis : validité, acompte, délai, signature ----------
   function conditionsDevis(pr, p, total, fmt){
     const lignes = [];
@@ -1016,7 +1076,7 @@
       cloche_forfait:400, cloche_tranche:100,
       cadre_forfait:400, cadre_tranche:100,
       charges:25, marge:15, tva:0,
-      siret:'', validite_jours:30, acompte_pct:30, delai_fab:'4 à 6 semaines'
+      siret:'', nom_legal:'', adresse_atelier:'', validite_jours:30, acompte_pct:30, delai_fab:'4 à 6 semaines'
     };
   }
 
@@ -1073,6 +1133,7 @@
     state.projet.telephone = document.getElementById('p_telephone').value;
     state.projet.numero_devis = document.getElementById('p_numero_devis').value;
     state.projet.date_devis = document.getElementById('p_date_devis').value;
+    changerStatut(state, document.getElementById('p_statut').value);
     state.projet.description = document.getElementById('p_description').value;
     state.projet.echelle = document.getElementById('p_echelle').value;
     state.projet.echelleCustom = document.getElementById('p_echelle_custom').value;
@@ -1121,6 +1182,8 @@
     p.bois_jupe = parseFloat(document.getElementById('param_bois_jupe').value) || 0;
     p.tasseaux = parseFloat(document.getElementById('param_tasseaux').value) || 0;
     p.siret = document.getElementById('param_siret').value.trim();
+    p.nom_legal = document.getElementById('param_nom_legal').value.trim();
+    p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
@@ -1145,6 +1208,7 @@
     document.getElementById('p_telephone').value = state.projet.telephone||'';
     document.getElementById('p_numero_devis').value = state.projet.numero_devis||'';
     document.getElementById('p_date_devis').value = state.projet.date_devis||'';
+    document.getElementById('p_statut').value = state.projet.statut || 'brouillon';
     document.getElementById('p_description').value = state.projet.description||'';
     document.getElementById('p_echelle').value = state.projet.echelle;
     document.getElementById('p_echelle_custom').value = state.projet.echelleCustom;
@@ -1179,6 +1243,8 @@
     document.getElementById('param_enduit').value = p.enduit;
     document.getElementById('param_flocage').value = p.flocage;
     document.getElementById('param_siret').value = p.siret || '';
+    document.getElementById('param_nom_legal').value = p.nom_legal || '';
+    document.getElementById('param_adresse_atelier').value = p.adresse_atelier || '';
     document.getElementById('param_delai_fab').value = p.delai_fab || '';
     document.getElementById('param_validite_jours').value = p.validite_jours;
     document.getElementById('param_acompte_pct').value = p.acompte_pct;
@@ -1416,7 +1482,7 @@
   const LIB_KEY = 'atelier_devis_library_v1';
 
   function libLoad(){ try { return JSON.parse(localStorage.getItem(LIB_KEY) || '[]'); } catch(e){ return []; } }
-  function libSave(lib){ try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch(e){} }
+  function libSave(lib){ try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch(e){} try { majBoutonProjets(); } catch(e){} }
 
   function libAdd(projectState){
     const uid = projectUid(projectState);
@@ -1443,9 +1509,13 @@
     }
     grid.innerHTML = lib.map(entry => {
       const date = new Date(entry.savedAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
-      return `<div class="lib-card">
+      let pr = {}; try { pr = JSON.parse(entry.data).projet || {}; } catch(e){}
+      const si = statutInfo(pr.statut), rel = aRelancer(pr);
+      return `<div class="lib-card${rel ? ' a-relancer' : ''}">
         <div class="lc-nom">${escapeHtml(entry.nom)}</div>
-        <div class="lc-client">${entry.client ? escapeHtml(entry.client) : '<em>Client non renseigné</em>'}</div>
+        <div class="lc-client">${entry.client ? escapeHtml(entry.client) : '<em>Client non renseigné</em>'}${pr.numero_devis ? ' · ' + escapeHtml(pr.numero_devis) : ''}</div>
+        <div class="lc-statut"><select data-lib-statut="${entry.id}" style="border-color:${si[2]};color:${si[2]}">${STATUTS.map(x => `<option value="${x[0]}"${x[0] === si[0] ? ' selected' : ''}>${x[1]}</option>`).join('')}</select>
+          ${rel ? `<button class="btn relance" data-lib-relance="${entry.id}" title="Ouvre un mail de relance">✉ Relancer (${rel} j)</button>` : ''}</div>
         <div class="lc-meta"><span>Échelle 1:${escapeHtml(String(entry.echelle))}</span><span>Enregistré le ${date}</span></div>
         <div class="lc-actions">
           <button class="btn primary" style="flex:1" data-lib-load="${entry.id}">Ouvrir</button>
@@ -1462,11 +1532,23 @@
           const loaded = JSON.parse(entry.data);
           state = Object.assign(freshState(), loaded);
           state.params = Object.assign(defaultParams(), loaded.params || {});
+          vueFacture = false;
           writeStateIntoForm(); syncAllRates(); showStep(1);
           toggleLibrary(false);
         } catch(e){ alert('Impossible de charger ce projet.'); }
       });
     });
+    const majEntree = (id, fn) => {
+      const lib = libLoad(), e = lib.find(x => x.id === id); if (!e) return;
+      const st = JSON.parse(e.data); fn(st);
+      e.data = JSON.stringify(st); libSave(lib);
+      if (projectUid(state) === e.uid){ state.projet.statut = st.projet.statut; state.projet.statut_dates = st.projet.statut_dates; writeStateIntoForm(); }
+      driveAutoSave(st); libRender();
+    };
+    grid.querySelectorAll('[data-lib-statut]').forEach(sel => sel.addEventListener('change', () => majEntree(sel.dataset.libStatut, st => changerStatut(st, sel.value))));
+    grid.querySelectorAll('[data-lib-relance]').forEach(btn => btn.addEventListener('click', () => majEntree(btn.dataset.libRelance, st => {
+      mailRelance(st.projet); st.projet.statut_dates = st.projet.statut_dates || {}; st.projet.statut_dates.relance = aujourdhuiISO();
+    })));
     grid.querySelectorAll('[data-lib-export]').forEach(btn => {
       btn.addEventListener('click', () => {
         const entry = libLoad().find(e => e.id === btn.dataset.libExport);
@@ -1667,6 +1749,7 @@
       state = freshState();
       loadParams();
       numeroterNouveau(state);
+      vueFacture = false;
       writeStateIntoForm();
       showStep(1);
     }
@@ -1743,8 +1826,33 @@
       }).join('');
       html += `<div class="choix"><h4>Comparateur d'échelles</h4><div class="choix-grid">${cartes}</div></div>`;
     }
-    if (html) html += `<p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Prix indicatifs avant remise, calculés sur les mêmes plans.</p>`;
+    if (html) html += `<p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Toiture amovible incluse dans toutes les formules. Prix indicatifs avant remise, calculés sur les mêmes plans.</p>`;
     box.innerHTML = html;
+  }
+
+  function renderFactureBar(pr, total, fmt){
+    const bar = document.getElementById('factureBar'); if (!bar) return;
+    if (!pr.numero_facture){
+      bar.innerHTML = `<button class="btn" id="btnFacture">🧾 Transformer en facture</button>`;
+      document.getElementById('btnFacture').onclick = () => {
+        if (!['accepte','fabrication','livre','paye'].includes(pr.statut || '') && !confirm("Ce devis n'est pas marqué « Accepté ». Créer la facture quand même ?")) return;
+        const ac = parseFloat(state.params.acompte_pct) || 0;
+        state.projet.numero_facture = prochaineFacture();
+        state.projet.date_facture = aujourdhuiISO();
+        state.projet.acompte_verse = ac > 0 && ac < 100 ? Math.round(total * ac) / 100 : 0;
+        if (!['fabrication','livre','paye'].includes(state.projet.statut)) changerStatut(state, 'accepte');
+        vueFacture = true; libAdd(state); writeStateIntoForm(); renderClientView();
+      };
+      return;
+    }
+    bar.innerHTML = `<div class="fb-onglets"><button class="btn${vueFacture ? '' : ' primary'}" data-vue="devis">Devis ${escapeHtml(pr.numero_devis || '')}</button>
+      <button class="btn${vueFacture ? ' primary' : ''}" data-vue="facture">Facture ${escapeHtml(pr.numero_facture)}</button></div>
+      ${vueFacture ? `<label class="fb-ac">Acompte déjà versé <input type="number" id="factAcompte" step="0.01" value="${parseFloat(pr.acompte_verse) || 0}"> €</label>
+      <label class="fb-ac">Date de facture <input type="date" id="factDate" value="${pr.date_facture || ''}"></label>` : ''}`;
+    bar.querySelectorAll('[data-vue]').forEach(b => b.onclick = () => { vueFacture = b.dataset.vue === 'facture'; renderClientView(); });
+    const a = document.getElementById('factAcompte'), d = document.getElementById('factDate');
+    if (a) a.onchange = () => { state.projet.acompte_verse = parseFloat(a.value) || 0; libAdd(state); renderClientView(); };
+    if (d) d.onchange = () => { state.projet.date_facture = d.value; libAdd(state); renderClientView(); };
   }
 
   // ---------- Vue client (étape 6) ----------
@@ -1766,11 +1874,16 @@
       <div class="ch-left">
         <div class="ch-brand"><img src="logo-driv3d.png" alt="D-RIV3D Création" style="height:40px;width:auto;display:block;margin-bottom:4px;"></div>
         <div class="ch-contact">driv3dfr@gmail.com</div>
+        ${p.nom_legal ? `<div class="ch-contact">${escapeHtml(p.nom_legal)}</div>` : ''}
+        ${p.adresse_atelier ? `<div class="ch-contact">${escapeHtml(p.adresse_atelier)}</div>` : ''}
         ${p.siret ? `<div class="ch-contact">SIRET ${escapeHtml(p.siret)}</div>` : ''}
       </div>
       <div class="ch-right">
-        <div class="ch-devis-num">Devis ${pr.numero_devis ? escapeHtml(pr.numero_devis) : '—'}</div>
-        <div class="ch-date">Établi le ${dateStr}</div>
+        ${vueFacture ? `<div class="ch-devis-num">Facture ${escapeHtml(pr.numero_facture)}</div>
+        <div class="ch-date">Date : ${new Date((pr.date_facture || aujourdhuiISO()) + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' })}</div>
+        ${pr.numero_devis ? `<div class="ch-date">Devis d'origine : ${escapeHtml(pr.numero_devis)} du ${dateStr}</div>` : ''}`
+        : `<div class="ch-devis-num">Devis ${pr.numero_devis ? escapeHtml(pr.numero_devis) : '—'}</div>
+        <div class="ch-date">Établi le ${dateStr}</div>`}
       </div>
     </div>
     <div class="client-info">
@@ -1837,8 +1950,17 @@
     document.getElementById('clientBreakdownContainer').innerHTML = headerHTML + breakdownHTML;
     const conditionsHTML = `<tr><td class="label" colspan="2" style="font-size:12px;color:var(--ink-soft);padding-top:14px;line-height:1.5;">
       Prix ferme établi sur la base des plans et informations fournis. Toute modification du projet (pièces, niveau de détail, dimensions, options) fera l'objet d'un avenant au présent devis.</td></tr>` + conditionsDevis(pr, p, totalTTCClient, fmt);
-    document.getElementById('clientSummaryTable').innerHTML = summaryHTML + conditionsHTML;
-    renderChoix(fmt);
+    const acVerse = parseFloat(pr.acompte_verse) || 0;
+    const factureHTML = `${acVerse > 0 ? `<tr><td class="label">Acompte déjà versé</td><td class="val">− ${fmt(acVerse)}</td></tr>
+        <tr class="total"><td class="label">Reste à payer</td><td class="val">${fmt(totalTTCClient - acVerse)}</td></tr>` : ''}
+      <tr><td class="label" colspan="2" style="font-size:12px;color:var(--ink-soft);padding-top:14px;line-height:1.5;">
+      Paiement à réception de la facture, par virement ou chèque. Pas d'escompte pour paiement anticipé.<br>
+      En cas de retard de paiement, pénalités au taux de trois fois le taux d'intérêt légal. Pour les clients professionnels, indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 du Code de commerce).</td></tr>`;
+    document.getElementById('clientSummaryTable').innerHTML = summaryHTML + (vueFacture ? factureHTML : conditionsHTML);
+    renderFactureBar(pr, totalTTCClient, fmt);
+    document.querySelector('.choix-ctrl').style.display = vueFacture ? 'none' : '';
+    document.getElementById('bonAccord').style.display = vueFacture ? 'none' : '';
+    if (vueFacture) document.getElementById('choixContainer').innerHTML = ''; else renderChoix(fmt);
 
     // ---- Pitch button ----
     const existingPitch = document.getElementById('pitchBtnWrap');
@@ -2863,11 +2985,13 @@
 
 
   // ---------- Init ----------
+  document.getElementById('p_statut').innerHTML = STATUTS.map(x => `<option value="${x[0]}">${x[1]}</option>`).join('');
   loadParams();
   numeroterNouveau(state);
   writeStateIntoForm();
   syncAllRates();
   showStep(1);
+  majBoutonProjets();
 </script>
 
 <div id="pitchOverlay">
