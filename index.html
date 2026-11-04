@@ -626,14 +626,11 @@
       <div class="lib-tabs">
         <button class="lib-tab active" data-bordtab="bord">📊 Chiffres</button>
         <button class="lib-tab" data-bordtab="pistes">🎯 Pistes</button>
+        <button class="lib-tab" data-bordtab="ao">🏛 Appels d'offres<span id="aoBadge"></span></button>
       </div>
       <div class="lib-local-section active" id="bordStats"><div id="bordContainer"></div></div>
-      <div class="lib-local-section" id="bordPistes">
-        <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
-        <div class="piste-rapide"><input id="pisteRapide" placeholder="Ajout rapide : un nom, un e-mail ou un téléphone (ex. Jean Dupont jean@domaine.fr 06 12 34 56 78)" autocomplete="off"><button class="btn primary" id="btnPisteRapide">＋ Ajouter</button></div>
-        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPistePhoto">📷 Nouvelle piste depuis une capture</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
-        <details class="memo-box" id="memoBox"><summary>📌 Mémo rendez-vous : à relire avant chaque RDV</summary><div id="memoContenu"></div></details>
-        <details class="ao-box" id="aoBox"><summary>🏛 Appels d'offres publics (BOAMP) <span id="aoBadge"></span></summary>
+      <div class="lib-local-section" id="bordAO">
+        <div class="ao-box" id="aoBox"><p class="hint" style="margin:0 0 6px;font-size:13px;">Annonces de marchés publics du BOAMP (données ouvertes, mises à jour chaque jour). Une annonce intéressante devient une piste en un clic, avec la date limite comme échéance.</p>
           <div class="ao-reglages">
             <div><label>Mots cherchés (séparés par des virgules)</label><input id="aoMots" placeholder="maquette"></div>
             <div><label>Départements (vide = toute la France)</label><input id="aoDeps" placeholder="ex. 10, 51, 52, 89"></div>
@@ -641,7 +638,13 @@
           </div>
           <div class="hint" id="aoInfo" style="font-size:12px;margin:0 0 6px;"></div>
           <div id="aoListe"></div>
-        </details>
+        </div>
+      </div>
+      <div class="lib-local-section" id="bordPistes">
+        <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
+        <div class="piste-rapide"><input id="pisteRapide" placeholder="Ajout rapide : un nom, un e-mail ou un téléphone (ex. Jean Dupont jean@domaine.fr 06 12 34 56 78)" autocomplete="off"><button class="btn primary" id="btnPisteRapide">＋ Ajouter</button></div>
+        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPistePhoto">📷 Nouvelle piste depuis une capture</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
+        <details class="memo-box" id="memoBox"><summary>📌 Mémo rendez-vous : à relire avant chaque RDV</summary><div id="memoContenu"></div></details>
         <details class="strategie-box" id="strategieBox"><summary>📝 Stratégie de prospection</summary><textarea id="strategieTxt" rows="8" placeholder="Constat, cibles prioritaires, méthode, budget…"></textarea><div class="hint" style="font-size:12px;">Enregistré automatiquement.</div></details>
         <div id="pistesContainer"></div>
       </div>
@@ -4191,7 +4194,9 @@ document.addEventListener('wheel', function(e){
     document.querySelectorAll('[data-bordtab]').forEach(b => b.classList.toggle('active', b.dataset.bordtab === t));
     document.getElementById('bordStats').classList.toggle('active', t === 'bord');
     document.getElementById('bordPistes').classList.toggle('active', t === 'pistes');
-    if (t === 'bord') renderTableauBord(); else renderPistes();
+    document.getElementById('bordAO').classList.toggle('active', t === 'ao');
+    if (t === 'bord') renderTableauBord(); else if (t === 'ao') renderAO(); else renderPistes();
+    if (!aoResultats && !aoEnCours && navigator.onLine !== false) aoChercher(true);
   }
   function pisteFormHTML(p){
     const e = escapeHtml, v = x => e(String(x ?? ''));
@@ -4215,7 +4220,7 @@ document.addEventListener('wheel', function(e){
   }
   function renderPistes(){
     const box = document.getElementById('pistesContainer'); if (!box) return;
-    const P = pistes(); renderStrategie(); if (!memoEdit) renderMemo(); if (!aoResultats && !aoEnCours && navigator.onLine !== false) aoChercher(true); else renderAO();
+    const P = pistes(); renderStrategie(); if (!memoEdit) renderMemo();
     const statut = id => STATUTS_PISTE.find(s => s[0] === id) || STATUTS_PISTE[1];
     const auj = new Date().toISOString().slice(0, 10);
     const compte = STATUTS_PISTE.map(s => { const n = P.filter(p => (p.statut || 'contacter') === s[0]).length;
@@ -4426,7 +4431,7 @@ document.addEventListener('wheel', function(e){
     if (m && document.activeElement !== m) m.value = R.mots || 'maquette';
     if (d && document.activeElement !== d) d.value = R.deps || '';
     const L = aoResultats || [], nouveaux = L.filter(a => !vus.has(aoChamp(a, 'idweb', 'id'))).length;
-    const badge = document.getElementById('aoBadge'); if (badge) badge.innerHTML = nouveaux && aoResultats ? `<span class="bord-statut" style="border-color:#c47a1a;color:#fff;background:#c47a1a;margin-left:6px;">${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''}</span>` : '';
+    const badge = document.getElementById('aoBadge'); if (badge) badge.innerHTML = nouveaux && aoResultats ? `<span class="bord-statut" style="border-color:#c47a1a;color:#fff;background:#c47a1a;margin-left:6px;font-size:11px;padding:0 6px;" title="${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} annonce${nouveaux > 1 ? 's' : ''}">${nouveaux}</span>` : '';
     if (!aoResultats) { box.innerHTML = '<p class="hint" style="font-size:12px;">Touche « Chercher » pour voir les dernières annonces.</p>'; return; }
     const auj = new Date().toISOString().slice(0, 10);
     box.innerHTML = L.length ? L.map(a => {
@@ -4444,7 +4449,8 @@ document.addEventListener('wheel', function(e){
         nom:(aoChamp(a, 'nomacheteur') ? aoChamp(a, 'nomacheteur') + ' : ' : '') + aoChamp(a, 'objet').slice(0, 90), type:'Collectivité / réseau', statut:'contacter', importance:2,
         site:lien, action:'Lire le dossier de consultation et répondre', date:lim, notes:'Appel d\'offres BOAMP n° ' + b.dataset.aopiste + '\n' + aoChamp(a, 'objet'),
         maj:new Date().toISOString().slice(0, 10), ts:new Date().toISOString() });
-      aoVu(b.dataset.aopiste); catSave(); renderPistes();
+      aoVu(b.dataset.aopiste); catSave(); renderAO();
+      const info = document.getElementById('aoInfo'); if (info) info.textContent = '✓ Piste créée : elle est dans l\'onglet 🎯 Pistes.';
     }));
     const tv = document.getElementById('aoToutVu'); if (tv) tv.onclick = () => { L.forEach(a => aoVu(aoChamp(a, 'idweb', 'id'))); catSave(); renderAO(); };
   }
