@@ -3750,7 +3750,7 @@ document.addEventListener('wheel', function(e){
     r.articles = fus(recent.articles, ancien.articles);
     if (Array.isArray(a.pistes) || Array.isArray(b.pistes)) r.pistes = fus(recent.pistes, ancien.pistes, typeof PISTES_DEPART !== 'undefined' ? PISTES_DEPART : []);
     r.strategie = recent.strategie || ancien.strategie || '';
-    if (a.ao || b.ao) r.ao = Object.assign({}, ancien.ao || {}, recent.ao || {}, { vus:[...new Set([...((ancien.ao || {}).vus || []), ...((recent.ao || {}).vus || [])])].slice(-500) });
+    if (a.ao || b.ao) r.ao = Object.assign({}, ancien.ao || {}, recent.ao || {}, { vus:[...new Set([...((ancien.ao || {}).vus || []), ...((recent.ao || {}).vus || [])])].slice(-500), ecartees:(recent.ao || ancien.ao || {}).ecartees || [] });
     r.supprimes = sup;
     r.maj = recent.maj || ancien.maj || '';
     return r;
@@ -4396,7 +4396,7 @@ document.addEventListener('wheel', function(e){
   }
   // ---------- Appels d'offres publics : annonces du BOAMP (données ouvertes, sans clé) ----------
   const AO_API = 'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records';
-  let aoResultats = null, aoEnCours = false;
+  let aoResultats = null, aoEnCours = false, aoVoirEcartees = false;
   function aoReglages(){ catalogue.ao = catalogue.ao || { mots:'maquette', deps:'', vus:[] }; return catalogue.ao; }
   const aoListeMots = r => (r.mots || 'maquette').split(',').map(x => x.trim()).filter(Boolean).slice(0, 6);
   const aoListeDeps = r => (r.deps || '').split(/[,; ]+/).map(x => x.trim().toUpperCase()).filter(Boolean).map(x => /^\d$/.test(x) ? '0' + x : x);
@@ -4430,7 +4430,9 @@ document.addEventListener('wheel', function(e){
     const m = document.getElementById('aoMots'), d = document.getElementById('aoDeps');
     if (m && document.activeElement !== m) m.value = R.mots || 'maquette';
     if (d && document.activeElement !== d) d.value = R.deps || '';
-    const L = aoResultats || [], nouveaux = L.filter(a => !vus.has(aoChamp(a, 'idweb', 'id'))).length;
+    const ecart = new Set(R.ecartees || []), Tous = aoResultats || [];
+    const nbEcart = Tous.filter(a => ecart.has(aoChamp(a, 'idweb', 'id'))).length;
+    const L = Tous.filter(a => aoVoirEcartees === ecart.has(aoChamp(a, 'idweb', 'id'))), nouveaux = Tous.filter(a => !vus.has(aoChamp(a, 'idweb', 'id')) && !ecart.has(aoChamp(a, 'idweb', 'id'))).length;
     const badge = document.getElementById('aoBadge'); if (badge) badge.innerHTML = nouveaux && aoResultats ? `<span class="bord-statut" style="border-color:#c47a1a;color:#fff;background:#c47a1a;margin-left:6px;font-size:11px;padding:0 6px;" title="${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} annonce${nouveaux > 1 ? 's' : ''}">${nouveaux}</span>` : '';
     if (!aoResultats) { box.innerHTML = '<p class="hint" style="font-size:12px;">Touche « Chercher » pour voir les dernières annonces.</p>'; return; }
     const auj = new Date().toISOString().slice(0, 10);
@@ -4438,10 +4440,14 @@ document.addEventListener('wheel', function(e){
       const id = aoChamp(a, 'idweb', 'id'), lim = aoChamp(a, 'datelimitereponse').slice(0, 10), par = aoChamp(a, 'dateparution').slice(0, 10);
       const lien = aoChamp(a, 'url_avis') || ('https://www.boamp.fr/pages/avis/?q=idweb:' + encodeURIComponent(id));
       const dejaPiste = (catalogue.pistes || []).some(p => p.ao === id);
-      return `<div class="ao-item">${!vus.has(id) ? '<span class="ao-nouveau">Nouveau</span>' : ''}<b>${escapeHtml(aoChamp(a, 'objet') || 'Sans titre')}</b>
+      return `<div class="ao-item" style="position:relative;padding-right:30px;"><button class="piste-suppr" data-aoecart="${escapeHtml(id)}" title="${aoVoirEcartees ? 'Remettre dans la liste' : 'Pas intéressé : retirer de la liste'}" style="position:absolute;right:0;top:6px;font-size:16px;">${aoVoirEcartees ? '↩' : '✕'}</button>${!vus.has(id) ? '<span class="ao-nouveau">Nouveau</span>' : ''}<b>${escapeHtml(aoChamp(a, 'objet') || 'Sans titre')}</b>
         <div class="ao-meta">${escapeHtml(aoChamp(a, 'nomacheteur', 'acheteur'))}${aoChamp(a, 'code_departement') ? ' · dép. ' + escapeHtml(aoChamp(a, 'code_departement')) : ''}${par ? ' · paru le ' + new Date(par).toLocaleDateString('fr-FR') : ''}${lim ? ` · <span style="${lim < auj ? 'color:#a33' : 'color:#2e7d4f;font-weight:600'}">réponse avant le ${new Date(lim).toLocaleDateString('fr-FR')}${lim < auj ? ' (clos)' : ''}</span>` : ''}</div>
         <div class="ao-actions"><a href="${escapeHtml(lienPropre(lien))}" target="_blank" rel="noopener">🔗 Voir l'annonce</a>${dejaPiste ? '<span style="font-size:12px;color:#2e7d4f;">✓ Déjà en piste</span>' : `<button data-aopiste="${escapeHtml(id)}">➕ En faire une piste</button>`}</div></div>`;
-    }).join('') + `<div style="margin-top:8px;"><button class="btn" id="aoToutVu" style="font-size:12px;padding:3px 10px;">Tout marquer comme vu</button></div>` : '<p class="hint" style="font-size:12px;">Aucune annonce pour ces mots. Essaie d\'autres mots (ex. maquette, scénographie, muséographie).</p>';
+    }).join('') : `<p class="hint" style="font-size:12px;">${aoVoirEcartees ? 'Aucune annonce écartée.' : 'Aucune annonce pour ces mots. Essaie d\'autres mots (ex. maquette, scénographie, muséographie).'}</p>`;
+    box.innerHTML += `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">${!aoVoirEcartees && L.length ? '<button class="btn" id="aoToutVu" style="font-size:12px;padding:3px 10px;">Tout marquer comme vu</button>' : ''}${nbEcart || aoVoirEcartees ? `<button class="btn" id="aoVoirEcart" style="font-size:12px;padding:3px 10px;">${aoVoirEcartees ? '← Revenir aux annonces' : 'Voir les annonces écartées (' + nbEcart + ')'}</button>` : ''}</div>`;
+    box.querySelectorAll('[data-aoecart]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.aoecart; R.ecartees = (R.ecartees || []).filter(x => x !== id); if (!aoVoirEcartees) { R.ecartees.push(id); aoVu(id); } R.ecartees = R.ecartees.slice(-500); catSave(); renderAO(); }));
+    const ve = document.getElementById('aoVoirEcart'); if (ve) ve.onclick = () => { aoVoirEcartees = !aoVoirEcartees; renderAO(); };
     box.querySelectorAll('[data-aopiste]').forEach(b => b.addEventListener('click', () => {
       const a = L.find(x => aoChamp(x, 'idweb', 'id') === b.dataset.aopiste); if (!a) return;
       const lim = aoChamp(a, 'datelimitereponse').slice(0, 10), lien = aoChamp(a, 'url_avis') || ('https://www.boamp.fr/pages/avis/?q=idweb:' + encodeURIComponent(b.dataset.aopiste));
