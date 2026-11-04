@@ -1233,6 +1233,8 @@
   function majParams(p){
     if (p.stl_remplissage === 0.4) p.stl_remplissage = 0.48;
     if (p.stl_g_par_h === 60) p.stl_g_par_h = 65;
+    // Bois : calé sur le périmètre du socle (Bati Tole 5,4 m → ≈ 21 h) au lieu du contour du bâtiment
+    if (p.bois_par_m_h === 4.5) p.bois_par_m_h = 3;
     return p;
   }
 
@@ -1242,7 +1244,7 @@
       dessin_brut_base:4, dessin_brut_m2:0.05, dessin_std_base:6, dessin_std_m2:0.10, dessin_det_base:8, dessin_det_m2:0.20,
       plans_papier_m2:0.05,
       filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
-      bois_base_h:5, bois_par_m_h:4.5, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
+      bois_base_h:5, bois_par_m_h:3, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
       polystyrene:8, plateau:20, enduit:5, flocage:6, gravier:6.5, vernis:19, bois_jupe:12, tasseaux:8,
       plastique_forfait:500, plastique_tranche:50, plastique_seuil:500,
       mobilier_tranche:30,
@@ -1517,7 +1519,8 @@
     const SjardinReel = parseFloat(state.dimensions.jardin)||0;
     const SbaseReel   = SbatReel + SjardinReel;
     const ev          = (()=>{ const e=state.projet.echelle; return e==="custom"?(parseFloat(state.projet.echelleCustom)||1):parseFloat(e); })();
-    const perimetre   = 2 * (longueur + largeur) / ev;  // périmètre MAQUETTE (m)
+    // Périmètre du SOCLE de la maquette (m) : contour du bâtiment, ou du terrain carré équivalent s'il y a un jardin
+    const perimetre   = Math.max(2 * (longueur + largeur) / ev, SjardinReel > 0 ? 4 * Math.sqrt(SbaseReel) / ev : 0);
     const o = state.options, p = state.params;
     const Ccond = o.jardin_amenage || o.eclairage_interieur || o.eclairage_exterieur;
 
