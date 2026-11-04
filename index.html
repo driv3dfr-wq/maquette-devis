@@ -704,7 +704,7 @@
             <option value="standard">Standard — + cloisons intérieures</option>
             <option value="detaille">Détaillé — + cuisine, meubles, textures</option>
             <option value="paysage">Paysagé — Détaillé + murs ouvragés, jardin, mobilier, éclairages</option>
-            <option value="complet">Tout compris — Paysagé + cloche plexiglas et cadre métal</option>
+            <option value="complet">Tout compris — Paysagé + éclairage connecté, cloche plexiglas et cadre métal</option>
           </select>
           <span class="unit">Les heures de dessin se calculent sur la surface de plancher (longueur × largeur × étages).</span>
         </div>
@@ -1535,7 +1535,7 @@
     readFormIntoState();
     ['murs_ouvrages','eclairage_interieur','eclairage_exterieur','mobilier'].forEach(k => state.options[k] = true);
     if (parseFloat(state.dimensions.jardin) > 0) state.options.jardin_amenage = true;
-    if (v === 'complet'){ state.options.cloche_plexi = true; state.options.cadre_metal = true; }
+    if (v === 'complet'){ state.options.cloche_plexi = true; state.options.cadre_metal = true; state.options.connectee = true; }
     renderOptions();
   });
 
@@ -2090,7 +2090,7 @@
     { cle:'standard', nom:'Standard', desc:'Menuiseries, toitures et teintes.', niveau:'standard' },
     { cle:'detaille', nom:'Détaillé', desc:'Modénatures, garde-corps, finitions fines.', niveau:'detaille' },
     { cle:'complet',  nom:'Paysagé', desc:'Détaillé avec jardin, mobilier et éclairages intérieur et extérieur.', niveau:'detaille', toutes:true },
-    { cle:'total',    nom:'Tout compris', desc:'Paysagé avec cloche plexiglas et cadre métal, prête à exposer.', niveau:'detaille', toutes:true, expo:true }
+    { cle:'total',    nom:'Tout compris', desc:'Paysagé avec éclairage connecté, cloche plexiglas et cadre métal, prête à exposer.', niveau:'detaille', toutes:true, expo:true }
   ];
   function prixClient(d){ return d.totalAvantRemise; }
   function renderChoix(fmt){
@@ -2113,10 +2113,10 @@
             if (k === 'jardin_amenage' && !(parseFloat(st.dimensions.jardin) > 0)) return;
             st.options[k] = true;
           });
-          if (f.expo){ st.options.cloche_plexi = true; st.options.cadre_metal = true; }
+          if (f.expo){ st.options.cloche_plexi = true; st.options.cadre_metal = true; st.options.connectee = true; }
           st.options.exterieur_seul = extSeul;
         });
-        return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.expo ? 'Toutes options, cloche et cadre' : f.toutes ? 'Jardin, mobilier, éclairages' : 'Maquette seule' };
+        return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.expo ? 'Toutes options, connecté, cloche et cadre' : f.toutes ? 'Jardin, mobilier, éclairages' : 'Maquette seule' };
       });
       // Cinquième carte : le devis tel qu'il est (niveau + options cochées), rangée selon son prix
       const fCur = FORMULES.find(f => f.cle === ({ paysage:'complet', complet:'total' }[pr.niveau] || pr.niveau || 'standard'));
