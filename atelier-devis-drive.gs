@@ -1,5 +1,5 @@
 /**
- * Atelier Devis — Maquettes 3D : sauvegarde des projets clients sur Google Drive.
+ * Devis Maquette (D-RIV3D Création) : sauvegarde des projets clients sur Google Drive.
  *
  * Mise en route (une seule fois, avec le compte Google driv3dfr@gmail.com) :
  *  1. script.google.com → Nouveau projet → coller ce fichier à la place du code existant → Enregistrer.
@@ -9,16 +9,16 @@
  *     Exécuter en tant que : Moi · Qui a accès : Tout le monde → copier l'URL …/exec.
  *  4. Dans l'appli : ☁ Drive → coller l'URL et la clé → Tester → Enregistrer.
  *
- * Sur le Drive : dossier « Atelier Devis »
+ * Sur le Drive : dossier « Devis Maquette »
  *   - un fichier JSON par projet (nom : « Client — Projet.json »)
- *   - tableur « Atelier Devis — Clients » (une ligne par projet, mise à jour à chaque sauvegarde)
+ *   - tableur « Devis Maquette — Clients » (une ligne par projet, mise à jour à chaque sauvegarde)
  *   - sous-dossier « Sauvegardes » : copie complète datée, une par semaine (lancer installer() crée le déclencheur).
  *
  * Sans la clé, le script ne répond rien : l'URL seule ne suffit pas pour lire les fiches clients.
  */
 const PROPS = PropertiesService.getScriptProperties();
-const NOM_DOSSIER = 'Atelier Devis';
-const NOM_TABLEUR = 'Atelier Devis — Clients';
+const NOM_DOSSIER = 'Devis Maquette';
+const NOM_TABLEUR = 'Devis Maquette — Clients';
 const ENTETES = ['Identifiant', 'Client', 'Projet', 'N° devis', 'E-mail', 'Téléphone', 'Adresse', 'Échelle', 'Total (€)', 'Dernière sauvegarde', 'Fichier'];
 
 /** À lancer une seule fois depuis l'éditeur. Relancer ne casse rien et réaffiche la clé. */
@@ -64,7 +64,7 @@ function sortie_(o) {
 }
 
 function doGet() {
-  return sortie_({ ok: false, err: 'Utiliser l\'appli Atelier Devis.' });
+  return sortie_({ ok: false, err: 'Utiliser l\'appli Devis Maquette.' });
 }
 
 function doPost(e) {

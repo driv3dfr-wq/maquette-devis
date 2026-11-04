@@ -1,4 +1,4 @@
-# Atelier Devis — Maquettes 3D
+# Devis Maquette — D-RIV3D Création
 
 Logiciel de devis pour maquettes architecturales 3D. Il s'ouvre dans le navigateur et s'installe comme une appli (téléphone et PC).
 
@@ -10,4 +10,4 @@ Adresse : https://driv3dfr-wq.github.io/maquette-devis/
 - **PC** : ouvrir dans Chrome ou Edge → icône « Installer » dans la barre d'adresse.
 
 ## Données
-Ce dépôt ne contient que l'appli, **aucune donnée client**. Les projets restent sur chaque appareil et, si la synchronisation est activée, dans le dossier « Atelier Devis » du Google Drive (voir `atelier-devis-drive.gs`).
+Ce dépôt ne contient que l'appli, **aucune donnée client**. Les projets restent sur chaque appareil et, si la synchronisation est activée, dans le dossier « Devis Maquette » du Google Drive (voir `atelier-devis-drive.gs`).

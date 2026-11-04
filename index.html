@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atelier Devis — Maquettes 3D</title>
+<title>Devis Maquette — D-RIV3D Création</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1B3A5C">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Atelier Devis">
+<meta name="apple-mobile-web-app-title" content="Devis Maquette">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -51,6 +51,18 @@
   }
   .brand{ display:flex; align-items:center; gap:12px; }
   .brand svg{ width:40px; height:40px; flex-shrink:0; }
+  .brand-logo{ height:44px; width:auto; flex-shrink:0; }
+  .file-actions{ align-items:center; }
+  .drive-chip{ font:500 12px 'IBM Plex Sans',sans-serif; padding:6px 12px; border-radius:999px; border:1px dashed var(--ink-soft); background:transparent; color:var(--ink-soft); cursor:pointer; }
+  .drive-chip:hover{ border-style:solid; color:var(--blue); border-color:var(--blue); }
+  .more-menu{ position:relative; }
+  .more-menu > summary{ list-style:none; display:inline-block; }
+  .more-menu > summary::-webkit-details-marker{ display:none; }
+  .more-panel{ position:absolute; right:0; top:calc(100% + 6px); z-index:50; min-width:270px; background:var(--paper-card); border:1.5px solid var(--ink); border-radius:var(--radius); box-shadow:0 8px 24px rgba(0,0,0,.15); padding:6px; }
+  .more-panel button{ display:block; width:100%; text-align:left; background:none; border:0; padding:9px 10px; font:500 13px 'IBM Plex Sans',sans-serif; color:var(--ink); border-radius:4px; cursor:pointer; }
+  .more-panel button:hover{ background:var(--paper-dim); }
+  .more-title{ font:600 10px 'IBM Plex Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding:8px 10px 2px; }
+  @media (max-width:640px){ .brand-logo{ height:34px; } .brand-name{ font-size:22px; } .topbar{ position:relative; } .more-menu{ position:static; } .more-panel{ left:0; right:0; top:auto; margin-top:6px; min-width:0; } }
   .brand-name{ font-family:'Architects Daughter', cursive; font-size: 26px; color: var(--blue); line-height:1; display:block; }
   .brand-sub{ font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); display:block; margin-top:2px; }
   .file-actions{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -338,6 +350,117 @@
   .devis-tab:hover:not(.active){ color:var(--blue); }
   .tab-pane{ display:none; }
   .tab-pane.active{ display:block; }
+  /* ---- Styles déplacés (ils étaient par erreur dans le modèle de checklist) ---- */
+  /* ---------- Graphique coûts ---------- */
+  .chart-section{ margin-top:28px; padding-top:20px; border-top:1px dashed rgba(27,58,92,0.25); }
+  .chart-title{ font-family:'Architects Daughter',cursive; color:var(--blue); font-size:14px; margin-bottom:12px; }
+  .chart-wrap{ position:relative; height:220px; }
+
+  /* ---------- Pitch plein écran ---------- */
+  .pitch-btn{ display:inline-block; margin-top:16px; background:none; border:1.5px solid var(--blue);
+    color:var(--blue); font-family:'IBM Plex Mono',monospace; font-size:12px;
+    padding:7px 16px; border-radius:4px; cursor:pointer; transition:all .15s; }
+  .pitch-btn:hover{ background:var(--blue); color:#fff; }
+  #pitchOverlay{
+    display:none; position:fixed; inset:0; background:#1B3A5C; z-index:2000;
+    flex-direction:column; align-items:center; justify-content:center; padding:40px;
+  }
+  #pitchOverlay.active{ display:flex; }
+  .pitch-close{ position:absolute; top:20px; right:28px; background:none; border:none;
+    color:rgba(255,255,255,0.5); font-size:28px; cursor:pointer; line-height:1; }
+  .pitch-close:hover{ color:#fff; }
+  .pitch-brand{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:rgba(239,234,224,0.5);
+    letter-spacing:0.12em; text-transform:uppercase; margin-bottom:10px; }
+  .pitch-nom{ font-family:'Architects Daughter',cursive; font-size:clamp(28px,5vw,52px);
+    color:#EFEAE0; margin-bottom:6px; text-align:center; }
+  .pitch-client{ font-size:16px; color:rgba(239,234,224,0.65); margin-bottom:48px; }
+  .pitch-amounts{ display:flex; gap:60px; flex-wrap:wrap; justify-content:center; }
+  .pitch-amount{ text-align:center; }
+  .pitch-amount-label{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:rgba(239,234,224,0.5);
+    text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
+  .pitch-amount-val{ font-family:'IBM Plex Mono',monospace; font-size:clamp(24px,4vw,42px);
+    color:#EFEAE0; font-weight:600; }
+  .pitch-devis{ font-size:13px; color:rgba(239,234,224,0.4); margin-top:40px; }
+
+  /* ---------- Suivi heures ---------- */
+  .suivi-intro{ font-size:12px; color:var(--ink-soft); margin-bottom:18px; }
+  .suivi-table{ width:100%; border-collapse:collapse; font-size:13px; margin-bottom:24px; }
+  .suivi-table th{ text-align:left; padding:6px 8px; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--blue); }
+  .suivi-table td{ padding:8px 8px; border-bottom:1px dashed var(--grid-line); vertical-align:middle; }
+  .suivi-table tr.suivi-total td{ font-weight:600; border-top:2px solid var(--blue);
+    border-bottom:none; color:var(--blue); padding-top:10px; }
+  .suivi-input{ width:80px; padding:4px 6px; border:1.5px solid var(--grid-line);
+    border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:12px;
+    background:var(--paper-card); color:var(--ink); text-align:right; }
+  .suivi-input:focus{ border-color:var(--blue); outline:none; }
+  .suivi-ecart{ font-weight:600; }
+  .suivi-ecart.ok{ color:var(--sage); }
+  .suivi-ecart.over{ color:var(--red-pencil); }
+  .suivi-ecart.neutral{ color:var(--ink-soft); }
+  .suivi-bar-wrap{ background:rgba(27,58,92,0.1); border-radius:3px; height:6px;
+    width:100%; overflow:hidden; }
+  .suivi-bar{ height:100%; border-radius:3px; transition:width 0.4s; }
+  .suivi-bar.ok{ background:var(--sage); }
+  .suivi-bar.over{ background:var(--red-pencil); }
+  .suivi-bar.neutral{ background:var(--blue-light); }
+  .suivi-save-row{ text-align:right; margin-top:4px; }
+
+  /* ---------- Commentaires par poste ---------- */
+  .cat-comment{ margin-top:8px; }
+  .cat-comment textarea{
+    width:100%; padding:7px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px;
+    border:1.5px dashed var(--grid-line); border-radius:3px; background:rgba(239,234,224,0.4);
+    color:var(--ink); resize:vertical; min-height:48px; transition:border-color .15s;
+  }
+  .cat-comment textarea:focus{ border-color:var(--blue-light); border-style:solid; outline:none; }
+  .cat-comment textarea::placeholder{ color:var(--ink-soft); }
+  .cat-comment-label{ font-size:10px; color:var(--ink-soft); text-transform:uppercase;
+    letter-spacing:0.06em; margin-bottom:4px; }
+
+
+  /* ---------- Drive sync ---------- */
+  .drive-badge{ display:inline-flex; align-items:center; gap:4px; font-size:10px;
+    padding:2px 7px; border-radius:10px; font-weight:600; vertical-align:middle; }
+  .drive-badge.connected{ background:#e6f4ea; color:#1e7e34; border:1px solid #a8d5b0; }
+  .drive-badge.disconnected{ background:#fce8e6; color:#c62828; border:1px solid #f5b8b4; }
+  .lib-tabs{ display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--ink); }
+  .lib-tab{ font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600;
+    padding:8px 18px; border:none; background:transparent; color:var(--ink-soft);
+    cursor:pointer; position:relative; bottom:-2px;
+    border-top:2px solid transparent; border-left:1.5px solid transparent; border-right:1.5px solid transparent; }
+  .lib-tab.active{ color:var(--blue); background:var(--paper-card);
+    border-top:2px solid var(--ink); border-left:1.5px solid var(--ink); border-right:1.5px solid var(--ink);
+    border-bottom:2px solid var(--paper-card); }
+  .lib-tab:hover:not(.active){ color:var(--blue); }
+  .lib-drive-section{ display:none; }
+  .lib-drive-section.active{ display:block; }
+  .lib-local-section{ display:none; }
+  .lib-local-section.active{ display:block; }
+  .lib-drive-status{ display:flex; justify-content:space-between; align-items:center;
+    padding:10px 14px; background:var(--paper-dim); border-radius:4px; margin-bottom:16px; font-size:12px; }
+  .lib-card .lc-drive-icon{ color:#4285F4; font-size:11px; }
+  /* Drive modal */
+  #driveModal{ display:none; position:fixed; inset:0; background:rgba(43,42,38,0.55);
+    z-index:1100; align-items:center; justify-content:center; }
+  #driveModal.open{ display:flex; }
+  .drive-modal-inner{ background:var(--paper-card); border:1.5px solid var(--ink);
+    border-radius:var(--radius); padding:28px; max-width:560px; width:94%; position:relative; }
+  .drive-modal-inner h3{ font-family:'Architects Daughter',cursive; color:var(--blue);
+    margin:0 0 4px 0; font-size:20px; }
+  .drive-step{ background:var(--paper-dim); border-radius:4px; padding:12px 14px;
+    margin:12px 0; font-size:13px; line-height:1.6; }
+  .drive-step strong{ color:var(--blue); }
+  .drive-step code{ background:rgba(27,58,92,0.1); padding:1px 5px; border-radius:3px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px; }
+  .drive-url-row{ display:flex; gap:8px; margin-top:14px; }
+  .drive-url-input{ flex:1; padding:8px 10px; border:1.5px solid var(--grid-line);
+    border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:12px;
+    background:var(--paper-card); color:var(--ink); }
+  .drive-url-input:focus{ border-color:var(--blue); outline:none; }
+  .drive-loader{ text-align:center; padding:32px; color:var(--ink-soft); font-size:13px; }
+  .drive-card-action-save{ font-size:11px; padding:3px 8px; }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -348,30 +471,32 @@
 
   <header class="topbar">
     <div class="brand">
-      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="24" r="22" stroke="#1B3A5C" stroke-width="1.5"/>
-        <path d="M24 6 L24 42 M6 24 L42 24" stroke="#1B3A5C" stroke-width="1"/>
-        <path d="M14 34 L24 10 L34 34" stroke="#1B3A5C" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-        <circle cx="24" cy="10" r="2" fill="#1B3A5C"/>
-      </svg>
+      <img src="logo-driv3d.png" alt="D-RIV3D Création" class="brand-logo">
       <div>
-        <span class="brand-name">Atelier Devis</span>
+        <span class="brand-name">Devis Maquette</span>
         <span class="brand-sub">Maquettes architecturales 3D</span>
       </div>
     </div>
-    <div class="file-actions">
+    <nav class="file-actions" aria-label="Actions">
       <button class="btn primary" id="btnLibrary">📁 Mes projets</button>
-      <button class="btn" id="btnNew">Nouveau</button>
-      <button class="btn" id="btnImport">Importer projet</button>
-      <input type="file" id="fileInput" accept=".json" hidden>
-      <button class="btn primary" id="btnExport">Exporter projet</button>
-      <button class="btn" id="btnImportParams" title="Charger mes paramètres sur cet appareil">⚙ Charger paramètres</button>
-      <input type="file" id="fileParamsInput" accept=".json" hidden>
-      <button class="btn" id="btnExportParams" title="Sauvegarder mes paramètres pour les transférer">⚙ Sauvegarder paramètres</button>
-      <button class="btn" id="btnDrive" title="Synchroniser avec Google Drive">☁ Drive</button>
-      <button class="btn" id="btnGmail" title="Envoyer les paramètres par Gmail">✉ Gmail</button>
-      <button class="btn" id="btnPasteParams" title="Coller les paramètres copiés depuis le mail">📋 Coller paramètres</button>
-    </div>
+      <button class="btn" id="btnNew">＋ Nouveau devis</button>
+      <button class="drive-chip" id="btnDrive" title="Synchronisation Google Drive">☁ Drive</button>
+      <details class="more-menu" id="moreMenu">
+        <summary class="btn" aria-label="Plus d'actions">⋯ Plus</summary>
+        <div class="more-panel">
+          <div class="more-title">Projet</div>
+          <button id="btnImport">📥 Importer un projet (fichier)</button>
+          <input type="file" id="fileInput" accept=".json" hidden>
+          <button id="btnExport">📤 Exporter ce projet (fichier)</button>
+          <div class="more-title">Paramètres de prix</div>
+          <button id="btnImportParams">⚙ Charger mes paramètres</button>
+          <input type="file" id="fileParamsInput" accept=".json" hidden>
+          <button id="btnExportParams">⚙ Sauvegarder mes paramètres</button>
+          <button id="btnGmail">✉ Envoyer mes paramètres par Gmail</button>
+          <button id="btnPasteParams">📋 Coller des paramètres reçus</button>
+        </div>
+      </details>
+    </nav>
   </header>
 
 <div class="library-view" id="libraryView">
@@ -406,7 +531,7 @@
   <div class="drive-modal-inner">
     <h3>☁ Synchronisation Google Drive</h3>
     <p style="font-size:13px;color:var(--ink-soft);margin:6px 0 14px 0;">
-      Tes projets seront stockés dans un dossier <strong>Atelier Devis</strong> sur ton Drive.<br>
+      Tes projets seront stockés dans un dossier <strong>Devis Maquette</strong> sur ton Drive.<br>
       Accessible depuis n'importe quel appareil avec la même URL du logiciel.
     </p>
     <div class="drive-step">
@@ -1286,9 +1411,9 @@
     readFormIntoState();
     const toSave = { params: state.params, materiaux: state.materiaux };
     const json = JSON.stringify(toSave, null, 2);
-    const subject = encodeURIComponent('Mes paramètres Atelier Devis');
+    const subject = encodeURIComponent('Mes paramètres Devis Maquette');
     const body = encodeURIComponent(
-      'Bonjour,\n\nVoici mes paramètres Atelier Devis à importer sur un autre appareil.\n\n' +
+      'Bonjour,\n\nVoici mes paramètres Devis Maquette à importer sur un autre appareil.\n\n' +
       'Copie le texte ci-dessous et colle-le dans un fichier .json, puis utilise le bouton "Charger paramètres" dans le logiciel.\n\n' +
       '--- DÉBUT PARAMÈTRES ---\n' + json + '\n--- FIN PARAMÈTRES ---'
     );
@@ -1389,7 +1514,7 @@
 
     const headerHTML = `<div class="client-header">
       <div class="ch-left">
-        <div class="ch-brand">Atelier Maquettes 3D</div>
+        <div class="ch-brand"><img src="logo-driv3d.png" alt="D-RIV3D Création" style="height:40px;width:auto;display:block;margin-bottom:4px;"></div>
         <div class="ch-contact">driv3dfr@gmail.com</div>
       </div>
       <div class="ch-right">
@@ -1507,7 +1632,7 @@
     if (qrWrap) {
       qrWrap.innerHTML = '';
       const qrText = [
-        'Atelier Devis',
+        'Devis Maquette — D-RIV3D Création',
         pr.nom ? 'Projet : '+pr.nom : '',
         pr.client ? 'Client : '+pr.client : '',
         pr.numero_devis ? 'Devis : '+pr.numero_devis : '',
@@ -1967,116 +2092,6 @@
     .box{ print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   }
 
-  /* ---------- Graphique coûts ---------- */
-  .chart-section{ margin-top:28px; padding-top:20px; border-top:1px dashed rgba(27,58,92,0.25); }
-  .chart-title{ font-family:'Architects Daughter',cursive; color:var(--blue); font-size:14px; margin-bottom:12px; }
-  .chart-wrap{ position:relative; height:220px; }
-
-  /* ---------- Pitch plein écran ---------- */
-  .pitch-btn{ display:inline-block; margin-top:16px; background:none; border:1.5px solid var(--blue);
-    color:var(--blue); font-family:'IBM Plex Mono',monospace; font-size:12px;
-    padding:7px 16px; border-radius:4px; cursor:pointer; transition:all .15s; }
-  .pitch-btn:hover{ background:var(--blue); color:#fff; }
-  #pitchOverlay{
-    display:none; position:fixed; inset:0; background:#1B3A5C; z-index:2000;
-    flex-direction:column; align-items:center; justify-content:center; padding:40px;
-  }
-  #pitchOverlay.active{ display:flex; }
-  .pitch-close{ position:absolute; top:20px; right:28px; background:none; border:none;
-    color:rgba(255,255,255,0.5); font-size:28px; cursor:pointer; line-height:1; }
-  .pitch-close:hover{ color:#fff; }
-  .pitch-brand{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:rgba(239,234,224,0.5);
-    letter-spacing:0.12em; text-transform:uppercase; margin-bottom:10px; }
-  .pitch-nom{ font-family:'Architects Daughter',cursive; font-size:clamp(28px,5vw,52px);
-    color:#EFEAE0; margin-bottom:6px; text-align:center; }
-  .pitch-client{ font-size:16px; color:rgba(239,234,224,0.65); margin-bottom:48px; }
-  .pitch-amounts{ display:flex; gap:60px; flex-wrap:wrap; justify-content:center; }
-  .pitch-amount{ text-align:center; }
-  .pitch-amount-label{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:rgba(239,234,224,0.5);
-    text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
-  .pitch-amount-val{ font-family:'IBM Plex Mono',monospace; font-size:clamp(24px,4vw,42px);
-    color:#EFEAE0; font-weight:600; }
-  .pitch-devis{ font-size:13px; color:rgba(239,234,224,0.4); margin-top:40px; }
-
-  /* ---------- Suivi heures ---------- */
-  .suivi-intro{ font-size:12px; color:var(--ink-soft); margin-bottom:18px; }
-  .suivi-table{ width:100%; border-collapse:collapse; font-size:13px; margin-bottom:24px; }
-  .suivi-table th{ text-align:left; padding:6px 8px; font-size:10px; text-transform:uppercase;
-    letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--blue); }
-  .suivi-table td{ padding:8px 8px; border-bottom:1px dashed var(--grid-line); vertical-align:middle; }
-  .suivi-table tr.suivi-total td{ font-weight:600; border-top:2px solid var(--blue);
-    border-bottom:none; color:var(--blue); padding-top:10px; }
-  .suivi-input{ width:80px; padding:4px 6px; border:1.5px solid var(--grid-line);
-    border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:12px;
-    background:var(--paper-card); color:var(--ink); text-align:right; }
-  .suivi-input:focus{ border-color:var(--blue); outline:none; }
-  .suivi-ecart{ font-weight:600; }
-  .suivi-ecart.ok{ color:var(--sage); }
-  .suivi-ecart.over{ color:var(--red-pencil); }
-  .suivi-ecart.neutral{ color:var(--ink-soft); }
-  .suivi-bar-wrap{ background:rgba(27,58,92,0.1); border-radius:3px; height:6px;
-    width:100%; overflow:hidden; }
-  .suivi-bar{ height:100%; border-radius:3px; transition:width 0.4s; }
-  .suivi-bar.ok{ background:var(--sage); }
-  .suivi-bar.over{ background:var(--red-pencil); }
-  .suivi-bar.neutral{ background:var(--blue-light); }
-  .suivi-save-row{ text-align:right; margin-top:4px; }
-
-  /* ---------- Commentaires par poste ---------- */
-  .cat-comment{ margin-top:8px; }
-  .cat-comment textarea{
-    width:100%; padding:7px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px;
-    border:1.5px dashed var(--grid-line); border-radius:3px; background:rgba(239,234,224,0.4);
-    color:var(--ink); resize:vertical; min-height:48px; transition:border-color .15s;
-  }
-  .cat-comment textarea:focus{ border-color:var(--blue-light); border-style:solid; outline:none; }
-  .cat-comment textarea::placeholder{ color:var(--ink-soft); }
-  .cat-comment-label{ font-size:10px; color:var(--ink-soft); text-transform:uppercase;
-    letter-spacing:0.06em; margin-bottom:4px; }
-
-
-  /* ---------- Drive sync ---------- */
-  .drive-badge{ display:inline-flex; align-items:center; gap:4px; font-size:10px;
-    padding:2px 7px; border-radius:10px; font-weight:600; vertical-align:middle; }
-  .drive-badge.connected{ background:#e6f4ea; color:#1e7e34; border:1px solid #a8d5b0; }
-  .drive-badge.disconnected{ background:#fce8e6; color:#c62828; border:1px solid #f5b8b4; }
-  .lib-tabs{ display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--ink); }
-  .lib-tab{ font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600;
-    padding:8px 18px; border:none; background:transparent; color:var(--ink-soft);
-    cursor:pointer; position:relative; bottom:-2px;
-    border-top:2px solid transparent; border-left:1.5px solid transparent; border-right:1.5px solid transparent; }
-  .lib-tab.active{ color:var(--blue); background:var(--paper-card);
-    border-top:2px solid var(--ink); border-left:1.5px solid var(--ink); border-right:1.5px solid var(--ink);
-    border-bottom:2px solid var(--paper-card); }
-  .lib-tab:hover:not(.active){ color:var(--blue); }
-  .lib-drive-section{ display:none; }
-  .lib-drive-section.active{ display:block; }
-  .lib-local-section{ display:none; }
-  .lib-local-section.active{ display:block; }
-  .lib-drive-status{ display:flex; justify-content:space-between; align-items:center;
-    padding:10px 14px; background:var(--paper-dim); border-radius:4px; margin-bottom:16px; font-size:12px; }
-  .lib-card .lc-drive-icon{ color:#4285F4; font-size:11px; }
-  /* Drive modal */
-  #driveModal{ display:none; position:fixed; inset:0; background:rgba(43,42,38,0.55);
-    z-index:1100; align-items:center; justify-content:center; }
-  #driveModal.open{ display:flex; }
-  .drive-modal-inner{ background:var(--paper-card); border:1.5px solid var(--ink);
-    border-radius:var(--radius); padding:28px; max-width:560px; width:94%; position:relative; }
-  .drive-modal-inner h3{ font-family:'Architects Daughter',cursive; color:var(--blue);
-    margin:0 0 4px 0; font-size:20px; }
-  .drive-step{ background:var(--paper-dim); border-radius:4px; padding:12px 14px;
-    margin:12px 0; font-size:13px; line-height:1.6; }
-  .drive-step strong{ color:var(--blue); }
-  .drive-step code{ background:rgba(27,58,92,0.1); padding:1px 5px; border-radius:3px;
-    font-family:'IBM Plex Mono',monospace; font-size:12px; }
-  .drive-url-row{ display:flex; gap:8px; margin-top:14px; }
-  .drive-url-input{ flex:1; padding:8px 10px; border:1.5px solid var(--grid-line);
-    border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:12px;
-    background:var(--paper-card); color:var(--ink); }
-  .drive-url-input:focus{ border-color:var(--blue); outline:none; }
-  .drive-loader{ text-align:center; padding:32px; color:var(--ink-soft); font-size:13px; }
-  .drive-card-action-save{ font-size:11px; padding:3px 8px; }
-
 </style>
 </head>
 <body>
@@ -2532,8 +2547,10 @@
   function updateDriveButton() {
     const btn = document.getElementById('btnDrive');
     const url = getDriveUrl();
-    btn.textContent = url ? '☁ Drive ●' : '☁ Drive';
+    btn.textContent = url ? '☁ Drive connecté' : '☁ Drive non connecté';
     btn.style.color = url ? 'var(--sage)' : '';
+    btn.style.borderColor = url ? 'var(--sage)' : '';
+    btn.style.borderStyle = url ? 'solid' : '';
     btn.title = '';
   }
 
@@ -2599,6 +2616,14 @@
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
+</script>
+<script>
+  // Menu « Plus » : se ferme après un choix ou un clic ailleurs
+  (function(){
+    const m = document.getElementById('moreMenu');
+    m.querySelectorAll('.more-panel button').forEach(b => b.addEventListener('click', () => m.open = false));
+    document.addEventListener('click', e => { if (m.open && !m.contains(e.target)) m.open = false; });
+  })();
 </script>
 </body>
 </html>
