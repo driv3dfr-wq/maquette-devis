@@ -864,6 +864,7 @@
       <h3>Heures de dessin (selon le niveau de détail)</h3>
       <div class="field-grid">
         <div class="field"><label for="param_dessin_brut_base">Dessin Brut — base</label><input type="number" id="param_dessin_brut_base" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_masse_m2">Volume (masse) — par m²</label><input type="number" id="param_masse_m2" step="0.005"><span class="unit">h / m² d'emprise (bâtiments alentour, étages non comptés)</span></div>
         <div class="field"><label for="param_dessin_brut_m2">Dessin Brut — par m²</label><input type="number" id="param_dessin_brut_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
         <div class="field"><label for="param_dessin_std_base">Dessin Standard — base</label><input type="number" id="param_dessin_std_base" step="0.5"><span class="unit">h</span></div>
         <div class="field"><label for="param_dessin_std_m2">Dessin Standard — par m²</label><input type="number" id="param_dessin_std_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
@@ -1277,7 +1278,7 @@
   function defaultParams(){
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
-      etage_repete_pct:25, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
+      etage_repete_pct:25, masse_m2:0.01, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
       dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.10,
       plans_papier_m2:0.05,
       filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
@@ -1328,13 +1329,14 @@
       const l = parseFloat(a.longueur) || 0, w = parseFloat(a.largeur) || 0, e = Math.max(1, parseInt(a.etages) || 1);
       if (l > 0 && w > 0){
         t.emprise += l * w; t.plancher += l * w * e; t.n++;
+        if (a.niveau === 'masse'){ t.masse += l * w; t.plancherMasse += l * w * e; t.nMasse++; return t; }   // volume simple : compté à l'emprise
         const n = ['brut','standard','detaille'].includes(a.niveau) ? a.niveau : 'brut';
         const eff = plancherEffectif(l * w, e);
         t.plancherEff += eff;
         t.parNiveau[n] = (t.parNiveau[n] || 0) + eff;
       }
       return t;
-    }, { emprise:0, plancher:0, plancherEff:0, n:0, parNiveau:{} });
+    }, { emprise:0, plancher:0, plancherEff:0, n:0, parNiveau:{}, masse:0, plancherMasse:0, nMasse:0 });
   }
   // Étages identiques : le 1er compte en entier, chaque étage en plus pour un pourcentage
   function plancherEffectif(emprise, etages){
@@ -1356,7 +1358,7 @@
         <input type="number" data-k="longueur" min="0" step="0.1" placeholder="Long. m" value="${a.longueur || ''}">
         <input type="number" data-k="largeur" min="0" step="0.1" placeholder="Larg. m" value="${a.largeur || ''}">
         <input type="number" data-k="etages" min="1" step="1" placeholder="Étages" value="${a.etages || 1}">
-        <select data-k="niveau">${[['brut','Brut'],['standard','Standard'],['detaille','Détaillé']].map(([v,t]) => `<option value="${v}"${(a.niveau || 'brut') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <select data-k="niveau">${[['masse','Volume (masse)'],['brut','Brut'],['standard','Standard'],['detaille','Détaillé']].map(([v,t]) => `<option value="${v}"${(a.niveau || 'brut') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
         <button type="button" class="btn" data-del="${i}" title="Retirer">✕</button></div>`).join('')
       : '<p style="font-size:13px;color:var(--ink-soft);margin:0;">Aucun. Le bouton adresse les ajoute s\'il en trouve sur la parcelle.</p>';
     box.querySelectorAll('input,select').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => {
@@ -1448,7 +1450,7 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1515,7 +1517,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1653,10 +1655,14 @@
     }
     const plancherPrinc = longueur * largeur * nbEtages;
     dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher, ${(effPrinc * fDeg).toFixed(0)} m² comptés)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * effPrinc * fDeg * kExtDessin) * fEch) });
-    if (ANN.n){
+    if (ANN.nMasse){
+      const m2M = m2Degressifs(ANN.masse);   // même dégressif et même effet d'échelle que le reste du dessin
+      dessin.push({ label:`Volumes alentour (masse, ${ANN.nMasse} bâtiment${ANN.nMasse > 1 ? 's' : ''}, ${ANN.masse.toFixed(0)} m² d'emprise, ${m2M.toFixed(0)} m² comptés)`, heures: arr1((p.masse_m2 ?? 0.01) * m2M * fEch) });
+    }
+    if (ANN.n > ANN.nMasse){
       const cle = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' };
       const hAnn = Object.entries(ANN.parNiveau).reduce((h, [n, m2]) => h + p[cle[n] + '_m2'] * m2 * fDeg, 0);
-      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''}, ${ANN.plancher.toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDeg).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch * kExtDessin) });
+      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n - ANN.nMasse} bâtiment${ANN.n - ANN.nMasse > 1 ? 's' : ''}, ${(ANN.plancher - ANN.plancherMasse).toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDeg).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch * kExtDessin) });
     }
 
     // --- Impression 3D (temps machine + filament) ---
