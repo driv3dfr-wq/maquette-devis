@@ -1989,7 +1989,7 @@
     fCk.checked = pr.montrer_formules !== false; eCk.checked = !!pr.montrer_echelles;
     let html = '';
     if (fCk.checked){
-      const cartes = FORMULES.map(f => {
+      const liste = FORMULES.map(f => {
         const d = simuler(st => {
           st.projet.niveau = f.niveau;
           if (!f.toutes){   // maquette seule : sans option ni fournitures d'options
@@ -2001,15 +2001,24 @@
             st.options[k] = true;
           });
         });
-        const actif = !f.toutes && (pr.niveau || 'standard') === f.niveau;
-        return `<div class="choix-card${actif ? ' actif' : ''}"><div class="cc-nom">${f.nom}</div><div class="cc-desc">${f.desc}</div>
-          <div class="cc-prix">${fmt(prixClient(d))}</div><div class="cc-sub">${f.toutes ? 'Toutes options' : 'Maquette seule' + (actif ? ' · niveau de ce devis' : '')}</div></div>`;
-      }).join('');
+        return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.toutes ? 'Toutes options' : 'Maquette seule' };
+      });
+      // Cinquième carte : le devis tel qu'il est (niveau + options cochées), rangée selon son prix
       const fCur = FORMULES.find(f => !f.toutes && f.niveau === (pr.niveau || 'standard'));
       const avecOpt = Object.values(state.options || {}).some(v => v) || (state.materiaux || []).some(m => parseFloat(m.quantite) > 0);
       const dCur = simuler(() => {});
-      const ligne = `<p class="cc-votre" style="margin:10px 0 0;font-size:14px;"><strong>Votre devis</strong> = ${fCur ? fCur.nom : 'formule choisie'}${avecOpt ? ' + options choisies' : ''} = <strong>${fmt(dCur.totalHT)}</strong>${dCur.remise > 0 ? ' (remise déduite)' : ''}</p>`;
-      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div>${ligne}</div>`;
+      const votre = { nom: 'Votre devis', desc: (fCur ? fCur.nom : 'Formule choisie') + (avecOpt ? ' avec les options choisies.' : ', sans option.'),
+        prix: prixClient(dCur), sub: dCur.remise > 0 ? 'Avant remise de ' + fmt(dCur.remise) : 'Formule retenue', actif: true };
+      const memePrix = liste.findIndex(c => Math.abs(c.prix - votre.prix) < 0.01);
+      if (memePrix >= 0){ liste[memePrix].actif = true; liste[memePrix].sub += ' · votre devis'; }
+      else {
+        let i = liste.findIndex(c => c.prix > votre.prix);
+        if (i < 0) i = liste.length;
+        liste.splice(i, 0, votre);
+      }
+      const cartes = liste.map(c => `<div class="choix-card${c.actif ? ' actif' : ''}"><div class="cc-nom">${c.nom}</div><div class="cc-desc">${c.desc}</div>
+          <div class="cc-prix">${fmt(c.prix)}</div><div class="cc-sub">${c.sub}</div></div>`).join('');
+      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div></div>`;
     }
     if (eCk.checked){
       const ech = [50, 75, 100];
