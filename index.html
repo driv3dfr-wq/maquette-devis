@@ -1716,7 +1716,7 @@
         try {
           const loaded = JSON.parse(entry.data);
           state = Object.assign(freshState(), loaded);
-          state.params = Object.assign(defaultParams(), loaded.params || {});
+          state.params = majParams(Object.assign(defaultParams(), loaded.params || {}));
           vueFacture = false;
           writeStateIntoForm(); syncAllRates(); showStep(1);
           toggleLibrary(false);
@@ -1787,7 +1787,7 @@
         const loaded = JSON.parse(e.target.result);
         const fresh = freshState();
         state = Object.assign(fresh, loaded);
-        state.params = Object.assign(defaultParams(), loaded.params || {});
+        state.params = majParams(Object.assign(defaultParams(), loaded.params || {}));
         libAdd(state);
         writeStateIntoForm();
         syncAllRates();
@@ -1921,7 +1921,7 @@
         const loaded = JSON.parse(ev.target.result);
         const fresh = freshState();
         const s = Object.assign(fresh, loaded);
-        s.params = Object.assign(defaultParams(), loaded.params || {});
+        s.params = majParams(Object.assign(defaultParams(), loaded.params || {}));
         libAdd(s);
         libRender();
         alert('Projet importé et ajouté à la bibliothèque.');
@@ -3120,7 +3120,7 @@
             if (!loaded || loaded.error) throw new Error(loaded?.error || 'Erreur chargement');
             delete loaded._meta;
             state = Object.assign(freshState(), loaded);
-            state.params = Object.assign(defaultParams(), loaded.params || {});
+            state.params = majParams(Object.assign(defaultParams(), loaded.params || {}));
             writeStateIntoForm(); syncAllRates(); showStep(1);
             toggleLibrary(false);
           } catch(e) {
