@@ -1984,10 +1984,13 @@
     fCk.checked = pr.montrer_formules !== false; eCk.checked = !!pr.montrer_echelles;
     let html = '';
     if (fCk.checked){
-      const optsActives = optionDefs.filter(o => state.options[o.key]).map(o => o.key);
       const cartes = FORMULES.map(f => {
         const d = simuler(st => {
           st.projet.niveau = f.niveau;
+          if (!f.toutes){   // maquette seule : sans option ni fournitures d'options
+            Object.keys(st.options).forEach(k => st.options[k] = false);
+            (st.materiaux || []).forEach(m => m.quantite = 0);
+          }
           if (f.toutes) ['murs_ouvrages','jardin_amenage','eclairage_interieur','eclairage_exterieur','mobilier'].forEach(k => {
             if (k === 'jardin_amenage' && !(parseFloat(st.dimensions.jardin) > 0)) return;
             st.options[k] = true;
@@ -1995,7 +1998,7 @@
         });
         const actif = !f.toutes && (pr.niveau || 'standard') === f.niveau;
         return `<div class="choix-card${actif ? ' actif' : ''}"><div class="cc-nom">${f.nom}</div><div class="cc-desc">${f.desc}</div>
-          <div class="cc-prix">${fmt(prixClient(d))}</div><div class="cc-sub">${actif ? 'Formule de ce devis' : (f.toutes ? 'Toutes options' : (optsActives.length ? 'Avec les options choisies' : 'Sans option'))}</div></div>`;
+          <div class="cc-prix">${fmt(prixClient(d))}</div><div class="cc-sub">${f.toutes ? 'Toutes options' : 'Maquette seule' + (actif ? ' · niveau de ce devis' : '')}</div></div>`;
       }).join('');
       html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div></div>`;
     }
