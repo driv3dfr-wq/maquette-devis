@@ -366,6 +366,8 @@
     flex-direction:column; align-items:center; justify-content:center; padding:40px;
   }
   #pitchOverlay.active{ display:flex; }
+  .pitch-chart{ width:min(720px,100%); height:240px; margin-top:44px; padding-bottom:24px; }
+  @media (max-height:700px){ .pitch-chart{ height:170px; margin-top:24px; } }
   .pitch-close{ position:absolute; top:20px; right:28px; background:none; border:none;
     color:rgba(255,255,255,0.5); font-size:28px; cursor:pointer; line-height:1; }
   .pitch-close:hover{ color:#fff; }
@@ -2311,6 +2313,7 @@
       addBar('MO Peinture', coutMOPeinture);
       addBar('Matériaux', matClient);
       addBar('Prestations', forfClient);
+      window._chartData = { labels: labels.slice(), vals: vals.slice() };
       if (window._clientChart) { try { window._clientChart.destroy(); } catch(e){} }
       window._clientChart = new Chart(canvas, {
         type: 'bar',
@@ -2945,8 +2948,27 @@
     document.getElementById('pitchHT').parentElement.style.display  = franchise ? 'none' : '';
     document.getElementById('pitchTVA').parentElement.style.display = franchise ? 'none' : '';
     document.getElementById('pitchTTC').previousElementSibling.textContent = franchise ? 'Total net' : 'Total TTC';
+    const boxTTC = document.getElementById('pitchTTC').parentElement;
+    boxTTC.style.borderLeft = franchise ? 'none' : ''; boxTTC.style.paddingLeft = franchise ? '0' : '';
     document.getElementById('pitchNumero').textContent = pr.numero_devis ? 'Devis ' + pr.numero_devis : '';
     document.getElementById('pitchOverlay').classList.add('active');
+    // Répartition des coûts, sur fond sombre
+    const cd = window._chartData, wrap = document.getElementById('pitchChartWrap');
+    if (window._pitchChart) { try { window._pitchChart.destroy(); } catch(e){} window._pitchChart = null; }
+    if (cd && cd.vals.length && typeof Chart !== 'undefined'){
+      wrap.style.display = '';
+      const pal = ['#EFEAE0','#9DB8D3','#A9C2A6','#E09A82','#D9BE8C','#BDB6A8'];
+      window._pitchChart = new Chart(document.getElementById('pitchChart'), {
+        type: 'bar',
+        data: { labels: cd.labels, datasets: [{ data: cd.vals, backgroundColor: cd.vals.map((_, i) => pal[i % pal.length]), borderRadius: 3, borderWidth: 0 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.raw.toLocaleString('fr-FR', { style:'currency', currency:'EUR' }) } } },
+          scales: {
+            x: { grid: { color: 'rgba(239,234,224,0.10)' }, ticks: { color: 'rgba(239,234,224,0.6)', font: { family: "'IBM Plex Mono'", size: 11 },
+              callback: v => v.toLocaleString('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }) } },
+            y: { grid: { display: false }, ticks: { color: '#EFEAE0', font: { family: "'IBM Plex Mono'", size: 12 } } } } }
+      });
+    } else wrap.style.display = 'none';
     document.addEventListener('keydown', _pitchEsc);
   }
   function pitchClose(){
@@ -3388,7 +3410,7 @@ document.addEventListener('wheel', function(e){
 
 <div id="pitchOverlay">
   <button class="pitch-close" onclick="pitchClose()" title="Fermer (Echap)">&#10005;</button>
-  <div class="pitch-brand">Atelier Maquettes 3D</div>
+  <div class="pitch-brand">D-RIV3D Création · Maquettes 3D</div>
   <div class="pitch-nom" id="pitchNom"></div>
   <div class="pitch-client" id="pitchClient"></div>
   <div class="pitch-amounts">
@@ -3405,6 +3427,7 @@ document.addEventListener('wheel', function(e){
       <div class="pitch-amount-val" id="pitchTTC" style="font-size:clamp(32px,5vw,56px);"></div>
     </div>
   </div>
+  <div class="pitch-chart" id="pitchChartWrap"><div class="pitch-amount-label" style="text-align:center;margin-bottom:10px;">Répartition des coûts</div><div style="position:relative;height:100%;"><canvas id="pitchChart"></canvas></div></div>
   <div class="pitch-devis" id="pitchNumero"></div>
 </div>
 <button class="print-btn" id="printFloatBtn" onclick="window.print()">Imprimer</button>
