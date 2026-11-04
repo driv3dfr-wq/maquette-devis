@@ -386,6 +386,19 @@
 
   /* ---------- Suivi heures ---------- */
   .suivi-intro{ font-size:12px; color:var(--ink-soft); margin-bottom:18px; }
+  .cat-art-form{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; background:var(--paper-dim); border:1.5px dashed var(--blue); border-radius:var(--radius); padding:14px; margin:0 0 18px; }
+  .cat-art-form label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:3px; }
+  .cat-art-form input,.cat-art-form select{ width:100%; }
+  .cat-art-form .full{ grid-column:1/-1; display:flex; gap:8px; justify-content:flex-end; }
+  .ach-table td input[type=number]{ width:70px !important; }
+  .ach-table select{ max-width:240px; width:100%; }
+  .ach-table tr.ach-ok td{ color:var(--ink-soft); }
+  .ach-table tr.ach-ok td:first-child{ text-decoration:line-through; }
+  .cat-hist{ font-size:12px; color:var(--ink-soft); }
+  .cat-hist summary{ cursor:pointer; }
+  .cat-hist ul{ margin:4px 0 0 16px; padding:0; }
+  .cat-actions button{ padding:4px 8px; font-size:12px; }
+  @media (max-width:640px){ .ach-table .ach-hide-m{ display:none; } .ach-table td input[type=number]{ width:60px; } }
   .suivi-table{ width:100%; border-collapse:collapse; font-size:13px; margin-bottom:24px; }
   .suivi-table th{ text-align:left; padding:6px 8px; font-size:10px; text-transform:uppercase;
     letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--blue); }
@@ -536,6 +549,8 @@
           <button id="btnImport">📥 Importer un projet (fichier)</button>
           <input type="file" id="fileInput" accept=".json" hidden>
           <button id="btnExport">📤 Exporter ce projet (fichier)</button>
+          <div class="more-title">Atelier</div>
+          <button id="btnCatalogue">🛒 Catalogue d'achats</button>
           <div class="more-title">Paramètres de prix</div>
           <button id="btnImportParams">⚙ Charger mes paramètres</button>
           <input type="file" id="fileParamsInput" accept=".json" hidden>
@@ -546,6 +561,20 @@
       </details>
     </nav>
   </header>
+
+<div class="library-view" id="catalogueView">
+    <div class="sheet" style="min-height:300px;">
+      <h2 style="font-family:'Architects Daughter',cursive;color:var(--blue);margin:0 0 4px 0;">Catalogue d'achats</h2>
+      <p class="hint" style="margin:0 0 6px;">Tes fournitures avec leurs dimensions, leur conditionnement et le dernier prix payé. Ajoute un ticket à chaque achat : le prix se met à jour et l'historique est gardé. Les listes d'achats des projets se relient à ces articles.</p>
+      <p class="hint" id="catSyncInfo" style="margin:0 0 12px;font-size:12px;"></p>
+      <div id="catContainer"></div>
+    </div>
+    <div class="controls" style="margin-top:26px;">
+      <button class="btn" id="btnCatBack">← Retour au devis en cours</button>
+      <span></span>
+      <button class="btn primary" id="btnCatAdd">＋ Nouvel article</button>
+    </div>
+</div>
 
 <div class="library-view" id="libraryView">
     <div class="sheet" style="min-height:300px;">
@@ -931,6 +960,7 @@
         <button class="devis-tab" data-tab="detail">Estimatif détaillé</button>
         <button class="devis-tab" data-tab="checklist">Checklist</button>
         <button class="devis-tab" data-tab="suivi">Suivi</button>
+        <button class="devis-tab" data-tab="achats">Achats</button>
       </div>
       <!-- Vue client -->
       <div id="tabClient" class="tab-pane active">
@@ -954,6 +984,10 @@
       <!-- Suivi -->
       <div id="tabSuivi" class="tab-pane" style="display:none;">
         <div id="suiviContainer"></div>
+      </div>
+      <!-- Liste d'achats -->
+      <div id="tabAchats" class="tab-pane" style="display:none;">
+        <div id="achatsContainer"></div>
       </div>
       <!-- Checklist -->
       <div id="tabChecklist" class="tab-pane" style="display:none;">
@@ -1722,29 +1756,29 @@
 
     // --- Matériaux automatiques ---
     const matAuto = [];
-    matAuto.push({ label:`Filament — ${(gImpr/1000).toFixed(2).replace('.',',')} kg${estim ? ' (estimation)' : ''}`, cost: gImpr/1000 * p.filament_kg });
+    matAuto.push({ label:`Filament — ${(gImpr/1000).toFixed(2).replace('.',',')} kg${estim ? ' (estimation)' : ''}`, cost: gImpr/1000 * p.filament_kg, cat:'filament', qte: gImpr/1000 });
     if (Ccond){
-      matAuto.push({ label:'Plateau bois', cost: p.plateau * Sbase });
+      matAuto.push({ label:'Plateau bois', cost: p.plateau * Sbase, cat:'plateau', qte: Sbase });
       // Bois jupe & tasseaux calculés sur périmètre réel
       if (perimetre > 0){
-        matAuto.push({ label:`Bois jupe (${perimetre.toFixed(1)} m)`, cost: (p.bois_jupe||12) * perimetre });
-        matAuto.push({ label:`Tasseaux (${perimetre.toFixed(1)} m)`, cost: (p.tasseaux||8) * perimetre });
+        matAuto.push({ label:`Bois jupe (${perimetre.toFixed(1)} m)`, cost: (p.bois_jupe||12) * perimetre, cat:'bois_jupe', qte: perimetre });
+        matAuto.push({ label:`Tasseaux (${perimetre.toFixed(1)} m)`, cost: (p.tasseaux||8) * perimetre, cat:'tasseaux', qte: perimetre });
       }
     }
     if (o.jardin_amenage){
-      matAuto.push({ label:'Polystyrène (jardin)', cost: p.polystyrene * Sjardin });
-      matAuto.push({ label:'Enduit (1 paquet)', cost: p.enduit });
+      matAuto.push({ label:'Polystyrène (jardin)', cost: p.polystyrene * Sjardin, cat:'polystyrene', qte: Sjardin });
+      matAuto.push({ label:'Enduit (1 paquet)', cost: p.enduit, cat:'enduit', qte: 1 });
       // Flocage auto-calculé : sachets de 20g, surface en cm²
       const surfFlocCm2 = Math.max(0, (Sjardin - Sbat)) * 10000;
       const nbSachets = Math.max(1, Math.ceil(surfFlocCm2 / 800)); // 1 sachet 20g ≈ 800 cm²
-      matAuto.push({ label:`Flocage herbe (${nbSachets} sachet${nbSachets > 1 ? 's' : ''} de 20g)`, cost: nbSachets * (p.flocage || 6) });
-      matAuto.push({ label:'Gravier mini (1 paquet)', cost: p.gravier });
-      matAuto.push({ label:'Vernis (1 pot)', cost: p.vernis || 19 });
+      matAuto.push({ label:`Flocage herbe (${nbSachets} sachet${nbSachets > 1 ? 's' : ''} de 20g)`, cost: nbSachets * (p.flocage || 6), cat:'flocage', qte: nbSachets });
+      matAuto.push({ label:'Gravier mini (1 paquet)', cost: p.gravier, cat:'gravier', qte: 1 });
+      matAuto.push({ label:'Vernis (1 pot)', cost: p.vernis || 19, cat:'vernis', qte: 1 });
     }
-    if (o.connectee) matAuto.push({ label:'Module Wi-Fi, relais et alimentation', cost: p.connectee_mat });
+    if (o.connectee) matAuto.push({ label:'Module Wi-Fi, relais et alimentation', cost: p.connectee_mat, cat:'connectee', qte: 1 });
     const matCompte = state.materiaux
       .filter(m => m.quantite > 0)
-      .map(m => ({ label: m.nom + ' (' + m.quantite + ' × ' + m.unite + ')', cost: m.prix * m.quantite }));
+      .map(m => ({ label: m.nom + ' (' + m.quantite + ' × ' + m.unite + ')', cost: m.prix * m.quantite, cat:'autre', qte: m.quantite, nom: m.nom, unite: m.unite }));
 
     // --- Totaux par poste ---
     const sumH = arr => arr.reduce((s,t) => s + t.heures, 0);
@@ -2083,6 +2117,7 @@
       if (_pane) _pane.style.display = 'block';
       if (_tabName === 'checklist') renderChecklistTab();
       if (_tabName === 'suivi') renderSuiviTab();
+      if (_tabName === 'achats') renderAchatsTab();
       const pb = document.getElementById('printFloatBtn');
       if (pb) pb.style.display = (_tabName === 'client') ? 'block' : 'none';
     });
@@ -3479,6 +3514,261 @@ document.addEventListener('wheel', function(e){
   // Appli installable : copie hors ligne (uniquement quand la page est servie en https ou localhost)
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+<script>
+  // ================= Catalogue d'achats (global) et liste d'achats (par projet) =================
+  const CAT_ACH = {
+    filament:['Filament','kg'], plateau:['Plateau bois','m²'], bois_jupe:['Bois de jupe','m'], tasseaux:['Tasseaux','m'],
+    polystyrene:['Polystyrène','m²'], enduit:['Enduit','paquet'], flocage:['Flocage','sachet'], gravier:['Gravier','paquet'],
+    vernis:['Vernis','pot'], peinture:['Peinture','pot'], colle:['Colle','tube'], eclairage:['Éclairage (LED, fils…)','pièce'],
+    connectee:['Électronique connectée','kit'], autre:['Autre','unité']
+  };
+  const CATALOGUE_KEY = 'devis_catalogue_v1';
+  let catalogue = (() => { try { const c = JSON.parse(localStorage.getItem(CATALOGUE_KEY) || 'null'); if (c && Array.isArray(c.articles)) return c; } catch(e){} return { maj:'', articles:[] }; })();
+  let catEdit = null;        // id de l'article en cours de modification ('new' pour un nouvel article)
+  let catTicket = null;      // id de l'article dont on saisit un ticket
+  let catDriveOk = null, catDriveTimer = null, catDriveLu = false;
+
+  const eur = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
+  const nbFr = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('fr-FR');
+  const numFr = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(x) ? 0 : x; };
+  const uniteArt = a => a.unite || (CAT_ACH[a.cat] || CAT_ACH.autre)[1];
+  const artById = id => catalogue.articles.find(a => a.id === id);
+
+  function catSave(){
+    catalogue.maj = new Date().toISOString();
+    try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){}
+    if (getDriveUrl && getDriveUrl()) {
+      clearTimeout(catDriveTimer);
+      catDriveTimer = setTimeout(async () => {
+        try { await driveCall({ action:'catalogue_save', data: JSON.stringify(catalogue) }); catDriveOk = true; }
+        catch(e){ catDriveOk = /Action inconnue/.test(e.message) ? false : catDriveOk; }
+        catSyncInfo();
+      }, 1500);
+    }
+  }
+  // Récupère le catalogue du Drive s'il est plus récent (une fois par ouverture de l'appli)
+  async function catDriveLire(force){
+    if ((catDriveLu && !force) || !(getDriveUrl && getDriveUrl())) return false;
+    catDriveLu = true;
+    try {
+      const r = await driveCall({ action:'catalogue_get' }); catDriveOk = true;
+      if (r.data) {
+        const d = JSON.parse(r.data);
+        if (d && Array.isArray(d.articles) && (d.maj || '') > (catalogue.maj || '')) {
+          catalogue = d; try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){}
+          return true;
+        }
+        if ((catalogue.maj || '') > (d.maj || '')) catSave();
+      } else if (catalogue.articles.length) catSave();
+    } catch(e){ if (/Action inconnue/.test(e.message)) catDriveOk = false; }
+    return false;
+  }
+  function catSyncInfo(){
+    const el = document.getElementById('catSyncInfo'); if (!el) return;
+    el.textContent = !(getDriveUrl && getDriveUrl()) ? 'Enregistré sur cet appareil (Drive non configuré).'
+      : catDriveOk === false ? 'Enregistré sur cet appareil. Pour le partager entre téléphone et PC, mets à jour le script Google (nouvelle version).'
+      : catDriveOk ? 'Enregistré sur cet appareil et sur le Drive (partagé entre tes appareils).' : 'Enregistré sur cet appareil.';
+  }
+
+  // ---------- Vue catalogue ----------
+  function toggleCatalogue(show){
+    document.getElementById('catalogueView').classList.toggle('active', show);
+    document.getElementById('libraryView').classList.remove('active');
+    document.getElementById('wizardView').classList.toggle('hidden', show);
+    if (show) { window.scrollTo(0, 0); renderCatalogue(); catDriveLire(true).then(ch => { if (ch) renderCatalogue(); catSyncInfo(); }); }
+  }
+  function catOptionsHTML(sel){ return Object.entries(CAT_ACH).map(([k, v]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${v[0]}</option>`).join(''); }
+  function catFormHTML(a){
+    const e = escapeHtml, v = x => e(String(x ?? ''));
+    return `<div class="cat-art-form" id="catForm">
+      <div><label>Article</label><input id="cf_nom" placeholder="ex. Tasseau pin raboté" value="${v(a.nom)}"></div>
+      <div><label>Catégorie</label><select id="cf_cat">${catOptionsHTML(a.cat || 'autre')}</select></div>
+      <div><label>Dimensions</label><input id="cf_dims" placeholder="ex. 27 × 27 mm, long. 2,40 m" value="${v(a.dims)}"></div>
+      <div><label>Conditionnement</label><input id="cf_cond" placeholder="ex. botte de 10" value="${v(a.cond)}"></div>
+      <div><label>Contenu d'un achat (<span id="cf_u">${e(uniteArt(a.cat ? a : { cat:'autre' }))}</span>)</label><input id="cf_qte" type="number" step="0.01" min="0" placeholder="ex. 24 (10 × 2,40 m)" value="${v(a.qte)}"></div>
+      <div><label>Unité (si différente)</label><input id="cf_unite" placeholder="${e((CAT_ACH[a.cat || 'autre'] || CAT_ACH.autre)[1])}" value="${v(a.unite)}"></div>
+      <div><label>Prix d'un achat (€)</label><input id="cf_prix" type="number" step="0.01" min="0" value="${v(a.prix)}"></div>
+      <div><label>Magasin / fournisseur</label><input id="cf_four" placeholder="ex. Leroy Merlin Troyes" value="${v(a.fournisseur)}"></div>
+      <div><label>Référence</label><input id="cf_ref" placeholder="réf. magasin" value="${v(a.ref)}"></div>
+      <div class="full"><button class="btn" id="cf_annuler">Annuler</button><button class="btn primary" id="cf_ok">Enregistrer l'article</button></div>
+    </div>`;
+  }
+  function ticketFormHTML(a){
+    const auj = new Date().toISOString().slice(0, 10);
+    return `<div class="cat-art-form" id="ticketForm">
+      <div class="full" style="justify-content:flex-start;"><strong>🧾 Ticket pour « ${escapeHtml(a.nom)} »</strong></div>
+      <div><label>Date</label><input id="tf_date" type="date" value="${auj}"></div>
+      <div><label>Nombre acheté (${escapeHtml(a.cond || 'achats')})</label><input id="tf_nb" type="number" step="1" min="1" value="1"></div>
+      <div><label>Prix payé en tout (€)</label><input id="tf_prix" type="number" step="0.01" min="0" value="${a.prix || ''}"></div>
+      <div><label>Magasin</label><input id="tf_mag" value="${escapeHtml(a.fournisseur || '')}"></div>
+      <div><label>N° de ticket / note</label><input id="tf_note"></div>
+      <div class="full"><button class="btn" id="tf_annuler">Annuler</button><button class="btn primary" id="tf_ok">Ajouter le ticket</button></div>
+    </div>`;
+  }
+  function renderCatalogue(){
+    const box = document.getElementById('catContainer'); if (!box) return;
+    const A = catalogue.articles;
+    let html = '';
+    if (catEdit) html += catFormHTML(catEdit === 'new' ? {} : (artById(catEdit) || {}));
+    if (catTicket && artById(catTicket)) html += ticketFormHTML(artById(catTicket));
+    if (!A.length) html += `<p class="hint">Catalogue vide. Clique sur « ＋ Nouvel article » pour ajouter ta première fourniture (ex. la botte de tasseaux, la planche pour la jupe).</p>`;
+    Object.keys(CAT_ACH).forEach(cat => {
+      const L = A.filter(a => (a.cat || 'autre') === cat).sort((x, y) => (x.nom || '').localeCompare(y.nom || ''));
+      if (!L.length) return;
+      html += `<h4 style="margin:18px 0 6px;">${CAT_ACH[cat][0]}</h4><table class="suivi-table ach-table" style="margin-bottom:8px;">
+        <tr><th>Article</th><th class="ach-hide-m">Dimensions</th><th class="ach-hide-m">Conditionnement</th><th style="text-align:right;">Prix</th><th style="text-align:right;" class="ach-hide-m">Prix / ${escapeHtml(CAT_ACH[cat][1])}</th><th></th></tr>` +
+        L.map(a => {
+          const h = (a.achats || []).slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+          const pu = a.qte > 0 ? eur(a.prix / a.qte) + ' / ' + escapeHtml(uniteArt(a)) : '—';
+          return `<tr><td><strong>${escapeHtml(a.nom || 'Sans nom')}</strong>${a.fournisseur ? `<br><span class="cat-hist">${escapeHtml(a.fournisseur)}${a.ref ? ' · réf. ' + escapeHtml(a.ref) : ''}</span>` : ''}
+              ${h.length ? `<details class="cat-hist"><summary>${h.length} achat${h.length > 1 ? 's' : ''}, dernier le ${new Date(h[0].date).toLocaleDateString('fr-FR')}</summary><ul>${h.map(t => `<li>${new Date(t.date).toLocaleDateString('fr-FR')} : ${t.nb} × pour ${eur(t.prix)}${t.magasin ? ' chez ' + escapeHtml(t.magasin) : ''}${t.projet ? ' (projet ' + escapeHtml(t.projet) + ')' : ''}${t.note ? ' · ' + escapeHtml(t.note) : ''}</li>`).join('')}</ul></details>` : ''}</td>
+            <td class="ach-hide-m">${escapeHtml(a.dims || '')}</td>
+            <td class="ach-hide-m">${escapeHtml(a.cond || '')}${a.qte ? `<br><span class="cat-hist">= ${nbFr(a.qte)} ${escapeHtml(uniteArt(a))}</span>` : ''}</td>
+            <td style="text-align:right;">${a.prix ? eur(a.prix) : '—'}</td>
+            <td style="text-align:right;" class="ach-hide-m">${pu}</td>
+            <td class="cat-actions" style="text-align:right;white-space:nowrap;"><button class="btn" data-tk="${a.id}" title="Ajouter un ticket de caisse">🧾</button> <button class="btn" data-ed="${a.id}" title="Modifier">✎</button> <button class="btn" data-dl="${a.id}" title="Supprimer">✕</button></td></tr>`;
+        }).join('') + '</table>';
+    });
+    box.innerHTML = html;
+    catSyncInfo();
+    const f = document.getElementById('catForm');
+    if (f) {
+      const cat = document.getElementById('cf_cat');
+      cat.addEventListener('change', () => { document.getElementById('cf_u').textContent = document.getElementById('cf_unite').value || CAT_ACH[cat.value][1]; document.getElementById('cf_unite').placeholder = CAT_ACH[cat.value][1]; });
+      document.getElementById('cf_annuler').addEventListener('click', () => { catEdit = null; renderCatalogue(); });
+      document.getElementById('cf_ok').addEventListener('click', () => {
+        const nom = document.getElementById('cf_nom').value.trim(); if (!nom) { alert('Donne un nom à l\'article.'); return; }
+        let a = catEdit === 'new' ? null : artById(catEdit);
+        if (!a) { a = { id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), achats:[] }; catalogue.articles.push(a); }
+        Object.assign(a, { nom, cat: cat.value, dims: document.getElementById('cf_dims').value.trim(), cond: document.getElementById('cf_cond').value.trim(),
+          qte: numFr(document.getElementById('cf_qte').value), unite: document.getElementById('cf_unite').value.trim(), prix: numFr(document.getElementById('cf_prix').value),
+          fournisseur: document.getElementById('cf_four').value.trim(), ref: document.getElementById('cf_ref').value.trim() });
+        catEdit = null; catSave(); renderCatalogue();
+      });
+      f.scrollIntoView({ block:'nearest' });
+    }
+    const t = document.getElementById('ticketForm');
+    if (t) {
+      document.getElementById('tf_annuler').addEventListener('click', () => { catTicket = null; renderCatalogue(); });
+      document.getElementById('tf_ok').addEventListener('click', () => {
+        const a = artById(catTicket); const nb = Math.max(1, Math.round(numFr(document.getElementById('tf_nb').value))), prix = numFr(document.getElementById('tf_prix').value);
+        if (!(prix > 0)) { alert('Indique le prix payé.'); return; }
+        (a.achats = a.achats || []).push({ date: document.getElementById('tf_date').value || new Date().toISOString().slice(0, 10), nb, prix,
+          magasin: document.getElementById('tf_mag').value.trim(), note: document.getElementById('tf_note').value.trim() });
+        a.prix = Math.round(prix / nb * 100) / 100;
+        if (document.getElementById('tf_mag').value.trim()) a.fournisseur = document.getElementById('tf_mag').value.trim();
+        catTicket = null; catSave(); renderCatalogue();
+      });
+      t.scrollIntoView({ block:'nearest' });
+    }
+    box.querySelectorAll('[data-ed]').forEach(b => b.addEventListener('click', () => { catEdit = b.dataset.ed; catTicket = null; renderCatalogue(); }));
+    box.querySelectorAll('[data-tk]').forEach(b => b.addEventListener('click', () => { catTicket = b.dataset.tk; catEdit = null; renderCatalogue(); }));
+    box.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
+      const a = artById(b.dataset.dl); if (!a || !confirm(`Supprimer « ${a.nom} » du catalogue ?`)) return;
+      catalogue.articles = catalogue.articles.filter(x => x !== a); catSave(); renderCatalogue();
+    }));
+  }
+  document.getElementById('btnCatalogue').addEventListener('click', () => toggleCatalogue(true));
+  document.getElementById('btnCatBack').addEventListener('click', () => toggleCatalogue(false));
+  document.getElementById('btnCatAdd').addEventListener('click', () => { catEdit = 'new'; catTicket = null; renderCatalogue(); });
+  document.getElementById('btnLibrary').addEventListener('click', () => document.getElementById('catalogueView').classList.remove('active'));
+  document.getElementById('btnNew').addEventListener('click', () => toggleCatalogue(false));
+
+  // ---------- Onglet « Achats » d'un projet ----------
+  function lignesAchats(){
+    const data = computeAndRenderResult();
+    const L = data.matAuto.concat(data.matCompte).filter(m => m.cat && m.qte > 0).map(m => {
+      const key = m.cat === 'autre' ? 'autre:' + (m.nom || m.label) : m.cat;
+      return { key, cat: m.cat, label: m.cat === 'autre' ? m.nom : m.label.replace(/\s*\(.*\)\s*$/, '').replace(/\s+—.*$/, ''), besoin: m.qte,
+        unite: m.cat === 'autre' ? (m.unite || 'unité') : CAT_ACH[m.cat][1], devis: m.cost };
+    });
+    (state.achatsLibres || []).forEach(x => L.push({ key: x.key, cat:'libre', label: x.nom, besoin: 0, unite:'', devis: 0, libre: x }));
+    return L;
+  }
+  function articleParDefaut(l){
+    const A = catalogue.articles.filter(a => l.cat === 'autre' ? (a.nom || '').toLowerCase() === (l.label || '').toLowerCase() : a.cat === l.cat);
+    return A.length === 1 ? A[0].id : (A.find(a => a.prix > 0) || A[0] || {}).id || '';
+  }
+  function calculLigne(l, s){
+    const a = artById(s.art);
+    let nb = s.nb != null ? s.nb : (a && a.qte > 0 ? Math.max(1, Math.ceil(l.besoin / a.qte - 1e-9)) : (l.libre ? 1 : (a ? Math.max(1, Math.ceil(l.besoin - 1e-9)) : 0)));
+    const estime = a && a.prix > 0 ? nb * a.prix : (l.libre ? 0 : l.devis);
+    return { a, nb, estime };
+  }
+  function renderAchatsTab(){
+    if (!state.achats) state.achats = {};
+    const L = lignesAchats();
+    let totEst = 0, totPaye = 0, reste = 0;
+    const rows = L.map((l, i) => {
+      const s = state.achats[l.key] || (state.achats[l.key] = { art: articleParDefaut(l) });
+      if (s.art && !artById(s.art)) s.art = '';
+      if (!s.art && !s.achete) { const d = articleParDefaut(l); if (d) s.art = d; }
+      const { a, nb, estime } = calculLigne(l, s);
+      totEst += estime; if (s.achete) totPaye += (s.paye != null ? s.paye : estime); else reste += estime;
+      const choix = catalogue.articles.filter(x => l.cat === 'libre' || l.cat === 'autre' || x.cat === l.cat);
+      const sel = `<select data-art="${i}"><option value="">${choix.length ? '— choisir dans le catalogue —' : '— aucun article de ce type —'}</option>${choix.map(x => `<option value="${x.id}"${x.id === s.art ? ' selected' : ''}>${escapeHtml(x.nom)}${x.dims ? ' · ' + escapeHtml(x.dims) : ''}${x.cond ? ' · ' + escapeHtml(x.cond) : ''}${x.prix ? ' · ' + eur(x.prix) : ''}</option>`).join('')}</select>`;
+      return `<tr class="${s.achete ? 'ach-ok' : ''}">
+        <td><strong>${escapeHtml(l.label)}</strong>${l.besoin ? `<br><span class="cat-hist">Besoin : ${nbFr(l.besoin)} ${escapeHtml(l.unite)}</span>` : ''}${l.libre ? ` <button class="btn" data-sup="${i}" style="padding:2px 6px;font-size:11px;" title="Retirer">✕</button>` : ''}</td>
+        <td>${sel}${a && a.qte ? `<br><span class="cat-hist">${a.cond ? escapeHtml(a.cond) + ' = ' : ''}${nbFr(a.qte)} ${escapeHtml(uniteArt(a))}${a.dims ? ' · ' + escapeHtml(a.dims) : ''}</span>` : (a && a.dims ? `<br><span class="cat-hist">${escapeHtml(a.dims)}</span>` : '')}</td>
+        <td style="text-align:center;"><input type="number" min="0" step="1" data-nb="${i}" value="${nb || ''}" placeholder="—"></td>
+        <td style="text-align:right;" class="ach-hide-m">${estime ? eur(estime) : '—'}</td>
+        <td style="text-align:center;white-space:nowrap;"><label style="cursor:pointer;"><input type="checkbox" data-ok="${i}"${s.achete ? ' checked' : ''}> acheté</label>${s.achete ? `<br><input type="number" min="0" step="0.01" data-paye="${i}" value="${s.paye != null ? s.paye : Math.round(estime * 100) / 100}" title="Prix payé (€)"> €` : ''}</td></tr>`;
+    }).join('');
+    const libres = catalogue.articles.length ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-10px 0 18px;">
+        <select id="achAjout" style="max-width:320px;"><option value="">＋ Ajouter un article du catalogue…</option>${catalogue.articles.map(x => `<option value="${x.id}">${escapeHtml(x.nom)}${x.dims ? ' · ' + escapeHtml(x.dims) : ''}</option>`).join('')}</select></div>` : '';
+    document.getElementById('achatsContainer').innerHTML =
+      `<p class="suivi-intro">Ce qu'il faut acheter pour ce projet, calculé d'après le devis. Relie chaque ligne à un article de ton <a href="#" id="achCatLink">catalogue d'achats</a> : l'appli compte combien de bottes, planches ou paquets prendre. Coche « acheté » au magasin, le prix payé est ajouté à l'historique de l'article.</p>
+      <table class="suivi-table ach-table">
+        <tr><th>À acheter</th><th>Article du catalogue</th><th style="text-align:center;">Nb</th><th style="text-align:right;" class="ach-hide-m">Estimé</th><th style="text-align:center;">Acheté</th></tr>
+        ${rows || '<tr><td colspan="5">Aucun matériau dans ce devis.</td></tr>'}
+        <tr class="suivi-total"><td colspan="2">Reste à acheter : ${eur(reste)}${totPaye ? ` · déjà payé : ${eur(totPaye)}` : ''}</td><td></td><td style="text-align:right;" class="ach-hide-m">${eur(totEst)}</td><td></td></tr>
+      </table>${libres}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn" id="achCopier">📋 Copier la liste de courses</button></div>`;
+    const box = document.getElementById('achatsContainer');
+    const sauver = () => { chronoSave(); renderAchatsTab(); };
+    box.querySelectorAll('[data-art]').forEach(el => el.addEventListener('change', () => { const s = state.achats[L[+el.dataset.art].key]; s.art = el.value; delete s.nb; sauver(); }));
+    box.querySelectorAll('[data-nb]').forEach(el => el.addEventListener('change', () => { const s = state.achats[L[+el.dataset.nb].key]; s.nb = Math.max(0, Math.round(numFr(el.value))); sauver(); }));
+    box.querySelectorAll('[data-paye]').forEach(el => el.addEventListener('change', () => {
+      const l = L[+el.dataset.paye], s = state.achats[l.key]; s.paye = numFr(el.value);
+      const a = artById(s.art), t = a && (a.achats || []).find(x => x.lien === projectUid(state) + '|' + l.key);
+      if (t) { t.prix = s.paye; if (t.nb > 0) a.prix = Math.round(s.paye / t.nb * 100) / 100; catSave(); }
+      sauver();
+    }));
+    box.querySelectorAll('[data-ok]').forEach(el => el.addEventListener('change', () => {
+      const l = L[+el.dataset.ok], s = state.achats[l.key], { a, nb, estime } = calculLigne(l, s), lien = projectUid(state) + '|' + l.key;
+      s.achete = el.checked;
+      if (el.checked) {
+        s.paye = Math.round(estime * 100) / 100; s.date = new Date().toISOString().slice(0, 10);
+        if (a) { (a.achats = a.achats || []).push({ date: s.date, nb, prix: s.paye, magasin: a.fournisseur || '', projet: state.projet.nom || '', lien }); catSave(); }
+      } else {
+        delete s.paye; delete s.date;
+        if (a && a.achats) { a.achats = a.achats.filter(t => t.lien !== lien); catSave(); }
+      }
+      sauver();
+    }));
+    box.querySelectorAll('[data-sup]').forEach(el => el.addEventListener('click', () => {
+      const l = L[+el.dataset.sup]; state.achatsLibres = (state.achatsLibres || []).filter(x => x.key !== l.key); delete state.achats[l.key]; sauver();
+    }));
+    const aj = document.getElementById('achAjout');
+    if (aj) aj.addEventListener('change', () => {
+      const a = artById(aj.value); if (!a) return;
+      const key = 'libre:' + a.id + ':' + Date.now().toString(36);
+      (state.achatsLibres = state.achatsLibres || []).push({ key, nom: a.nom });
+      state.achats[key] = { art: a.id, nb: 1 }; sauver();
+    });
+    document.getElementById('achCatLink').addEventListener('click', e => { e.preventDefault(); toggleCatalogue(true); });
+    document.getElementById('achCopier').addEventListener('click', () => {
+      const txt = 'Achats — ' + (state.projet.nom || 'projet') + '\n' + L.map(l => {
+        const s = state.achats[l.key] || {}; if (s.achete) return null;
+        const { a, nb } = calculLigne(l, s);
+        return '☐ ' + (a ? `${nb} × ${a.nom}${a.dims ? ' (' + a.dims + ')' : ''}${a.cond ? ', ' + a.cond : ''}${a.fournisseur ? ' — ' + a.fournisseur : ''}` : `${l.label} : ${nbFr(l.besoin)} ${l.unite}`);
+      }).filter(Boolean).join('\n');
+      const ok = () => { const b = document.getElementById('achCopier'); if (b) { b.textContent = '✓ Copiée'; setTimeout(() => { b.textContent = '📋 Copier la liste de courses'; }, 1800); } };
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(ok, () => prompt('Copie la liste :', txt)); else prompt('Copie la liste :', txt);
+    });
+    if (!catDriveLu) catDriveLire().then(ch => { if (ch && document.getElementById('tabAchats').style.display !== 'none') renderAchatsTab(); });
   }
 </script>
 <script>

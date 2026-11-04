@@ -12,6 +12,7 @@
  * Sur le Drive : dossier « Devis Maquette »
  *   - un fichier JSON par projet (nom : « Client — Projet.json »)
  *   - tableur « Devis Maquette — Clients » (une ligne par projet, mise à jour à chaque sauvegarde)
+ *   - « Catalogue d'achats.json » : fournitures, prix et tickets (partagé entre les appareils)
  *   - sous-dossier « Sauvegardes » : copie complète datée, une par semaine (lancer installer() crée le déclencheur).
  *
  * Sans la clé, le script ne répond rien : l'URL seule ne suffit pas pour lire les fiches clients.
@@ -141,6 +142,18 @@ function api_(b) {
         return { ok: true, numero: pre + '-' + an + '-' + String(max).padStart(3, '0') };
       }
 
+      case 'catalogue_get': {
+        // Catalogue d'achats (fournitures, prix, tickets) : un seul fichier partagé entre les appareils
+        const f = fichierCatalogue_(false);
+        return { ok: true, data: f ? f.getBlob().getDataAsString('UTF-8') : '' };
+      }
+
+      case 'catalogue_save': {
+        if (typeof b.data !== 'string') return { ok: false, err: 'Données manquantes' };
+        fichierCatalogue_(true).setContent(b.data);
+        return { ok: true };
+      }
+
       case 'delete': {
         const f = DriveApp.getFileById(b.id);
         if (!estDansDossier_(f)) return { ok: false, err: 'Fichier inconnu' };
@@ -156,6 +169,15 @@ function api_(b) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function fichierCatalogue_(creer) {
+  const id = PROPS.getProperty('CATALOGUE');
+  if (id) { try { const f = DriveApp.getFileById(id); if (!f.isTrashed()) return f; } catch (e) {} }
+  if (!creer) return null;
+  const f = dossier_().createFile('Catalogue d\'achats.json', '{"maj":"","articles":[]}', MimeType.PLAIN_TEXT);
+  PROPS.setProperty('CATALOGUE', f.getId());
+  return f;
 }
 
 function estDansDossier_(f) {
