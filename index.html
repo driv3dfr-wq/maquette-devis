@@ -578,12 +578,13 @@
       <h2 style="font-family:'Architects Daughter',cursive;color:var(--blue);margin:0 0 4px 0;">Catalogue d'achats</h2>
       <p class="hint" style="margin:0 0 6px;">Tes fournitures avec leurs dimensions, leur conditionnement et le dernier prix payé. Ajoute un ticket à chaque achat : le prix se met à jour et l'historique est gardé. Les listes d'achats des projets se relient à ces articles.</p>
       <p class="hint" id="catSyncInfo" style="margin:0 0 12px;font-size:12px;"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;"><button class="btn primary" id="btnCatPhoto" title="Photo d'une étiquette en magasin ou capture d'écran d'un site">📷 Depuis une photo</button><button class="btn" id="btnCatAdd">＋ Nouvel article</button></div>
+      <p class="hint" id="catOcrInfo" style="display:none;margin:0 0 12px;padding:8px 12px;background:var(--paper-dim);border-radius:var(--radius);font-weight:600;color:var(--blue);"></p>
       <div id="catContainer"></div>
     </div>
     <div class="controls" style="margin-top:26px;">
       <button class="btn" id="btnCatBack">← Retour au devis en cours</button>
       <span></span>
-      <button class="btn primary" id="btnCatAdd">＋ Nouvel article</button>
     </div>
 </div>
 
@@ -3655,6 +3656,7 @@ document.addEventListener('wheel', function(e){
       <div><label>Prix d'un achat (€)</label><input id="cf_prix" type="number" step="0.01" min="0" value="${v(a.prix)}"></div>
       <div><label>Magasin / fournisseur</label><input id="cf_four" placeholder="ex. Leroy Merlin Troyes" value="${v(a.fournisseur)}"></div>
       <div><label>Référence</label><input id="cf_ref" placeholder="réf. magasin" value="${v(a.ref)}"></div>
+      ${a._texte ? `<details class="full cat-hist" style="display:block;"><summary>📷 Lu sur la photo : vérifie et corrige les cases ci-dessus</summary><pre style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;">${e(a._texte)}</pre></details>` : ''}
       <div class="full"><button class="btn" id="cf_annuler">Annuler</button><button class="btn primary" id="cf_ok">Enregistrer l'article</button></div>
     </div>`;
   }
@@ -3667,14 +3669,14 @@ document.addEventListener('wheel', function(e){
       <div><label>Prix payé en tout (€)</label><input id="tf_prix" type="number" step="0.01" min="0" value="${a.prix || ''}"></div>
       <div><label>Magasin</label><input id="tf_mag" value="${escapeHtml(a.fournisseur || '')}"></div>
       <div><label>N° de ticket / note</label><input id="tf_note"></div>
-      <div class="full"><button class="btn" id="tf_annuler">Annuler</button><button class="btn primary" id="tf_ok">Ajouter le ticket</button></div>
+      <div class="full"><button class="btn" id="tf_photo" style="margin-right:auto;">📷 Lire le ticket</button><button class="btn" id="tf_annuler">Annuler</button><button class="btn primary" id="tf_ok">Ajouter le ticket</button></div>
     </div>`;
   }
   function renderCatalogue(){
     const box = document.getElementById('catContainer'); if (!box) return;
     const A = catalogue.articles;
     let html = '';
-    if (catEdit) html += catFormHTML(catEdit === 'new' ? {} : (artById(catEdit) || {}));
+    if (catEdit) html += catFormHTML(catEdit === 'new' ? (catPrefill || {}) : (artById(catEdit) || {}));
     if (catTicket && artById(catTicket)) html += ticketFormHTML(artById(catTicket));
     if (!A.length) html += `<p class="hint">Catalogue vide. Clique sur « ＋ Nouvel article » pour ajouter ta première fourniture (ex. la botte de tasseaux, la planche pour la jupe).</p>`;
     Object.keys(CAT_ACH).forEach(cat => {
@@ -3700,7 +3702,7 @@ document.addEventListener('wheel', function(e){
     if (f) {
       const cat = document.getElementById('cf_cat');
       cat.addEventListener('change', () => { document.getElementById('cf_u').textContent = document.getElementById('cf_unite').value || CAT_ACH[cat.value][1]; document.getElementById('cf_unite').placeholder = CAT_ACH[cat.value][1]; });
-      document.getElementById('cf_annuler').addEventListener('click', () => { catEdit = null; renderCatalogue(); });
+      document.getElementById('cf_annuler').addEventListener('click', () => { catEdit = null; catPrefill = null; renderCatalogue(); });
       document.getElementById('cf_ok').addEventListener('click', () => {
         const nom = document.getElementById('cf_nom').value.trim(); if (!nom) { alert('Donne un nom à l\'article.'); return; }
         let a = catEdit === 'new' ? null : artById(catEdit);
@@ -3708,13 +3710,20 @@ document.addEventListener('wheel', function(e){
         Object.assign(a, { nom, cat: cat.value, dims: document.getElementById('cf_dims').value.trim(), cond: document.getElementById('cf_cond').value.trim(),
           qte: numFr(document.getElementById('cf_qte').value), unite: document.getElementById('cf_unite').value.trim(), prix: numFr(document.getElementById('cf_prix').value),
           fournisseur: document.getElementById('cf_four').value.trim(), ref: document.getElementById('cf_ref').value.trim() });
-        catEdit = null; catSave(); renderCatalogue();
+        catEdit = null; catPrefill = null; catSave(); renderCatalogue();
       });
       f.scrollIntoView({ block:'nearest' });
     }
     const t = document.getElementById('ticketForm');
     if (t) {
       document.getElementById('tf_annuler').addEventListener('click', () => { catTicket = null; renderCatalogue(); });
+      document.getElementById('tf_photo').addEventListener('click', () => choisirPhoto(r => {
+        if (r.date) document.getElementById('tf_date').value = r.date;
+        const p = r.total || r.prix; if (p) document.getElementById('tf_prix').value = p;
+        if (r.fournisseur) document.getElementById('tf_mag').value = r.fournisseur;
+        const no = /(?:ticket|n°|no|trans)\s*:?\s*(\d{3,})/i.exec(r._texte || ''); if (no) document.getElementById('tf_note').value = 'Ticket ' + no[1];
+        if (!p) alert('Je n\'ai pas trouvé le total sur la photo : indique le prix payé à la main.');
+      }));
       document.getElementById('tf_ok').addEventListener('click', () => {
         const a = artById(catTicket); const nb = Math.max(1, Math.round(numFr(document.getElementById('tf_nb').value))), prix = numFr(document.getElementById('tf_prix').value);
         if (!(prix > 0)) { alert('Indique le prix payé.'); return; }
@@ -3733,6 +3742,124 @@ document.addEventListener('wheel', function(e){
       catalogue.articles = catalogue.articles.filter(x => x !== a); catSave(); renderCatalogue();
     }));
   }
+  // ---------- Lecture de photos (étiquette, capture d'écran, ticket) : OCR gratuit dans le navigateur ----------
+  let catPrefill = null;
+  const OCR_LIB = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  let ocrWorkerP = null;
+  function ocrInfo(t){ const el = document.getElementById('catOcrInfo'); if (el) { el.textContent = t || ''; el.style.display = t ? 'block' : 'none'; } }
+  function chargerScript(src){ return new Promise((ok, ko) => { if (window.Tesseract) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('Bibliothèque de lecture introuvable (réseau ?)')); document.head.appendChild(s); }); }
+  async function ocrWorker(){
+    if (!ocrWorkerP) ocrWorkerP = (async () => {
+      await chargerScript(OCR_LIB);
+      return Tesseract.createWorker('fra', 1, {
+        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+        langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0_best_int',
+        logger: m => { if (m.status === 'recognizing text') ocrInfo('Lecture de la photo… ' + Math.round((m.progress || 0) * 100) + ' %'); else if (/load|initializ/.test(m.status || '')) ocrInfo('Préparation de la lecture (la 1re fois, quelques secondes)…'); }
+      });
+    })().catch(e => { ocrWorkerP = null; throw e; });
+    return ocrWorkerP;
+  }
+  // Agrandit et passe en gris les petites images (captures, étiquettes floues) pour aider la lecture
+  async function preparerImage(file){
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+      const k = Math.min(3, Math.max(1, 1600 / Math.max(img.width, img.height)));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.3)'; g.drawImage(img, 0, 0, c.width, c.height);
+      return c;
+    } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
+  }
+  async function lirePhoto(file){
+    ocrInfo('Préparation de la lecture…');
+    const w = await ocrWorker();
+    const { data } = await w.recognize(await preparerImage(file));
+    ocrInfo('');
+    return (data && data.text || '').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+  }
+  const MAGASINS = ['Leroy Merlin','Castorama','Brico Dépôt','Bricomarché','Bricorama','Mr Bricolage','Weldom','Point P','Gedimat','Amazon','ManoMano','Action','Cultura','Rougier & Plé','Lidl','Aliexpress','Temu','Cdiscount','Boulanger','Darty','Ikea','Hornbach','Decathlon','Gifi','La Foir\'Fouille','Cultura','Géant des Beaux-Arts','Le Géant des Beaux-Arts','Noz'];
+  const MOTS_CAT = [
+    ['tasseaux', /tasseau|liteau|carrelet/i], ['bois_jupe', /planche|contre.?plaqu|m[ée]dium|mdf|latte|plinthe|baguette|moulure|panneau/i],
+    ['plateau', /plateau|dalle|agglom|osb/i], ['polystyrene', /polystyr|styrodur|isolant/i], ['enduit', /enduit|rebouch|plâtre|platre/i],
+    ['flocage', /flocage|herbe|gazon|static grass|fibre/i], ['gravier', /gravier|ballast|sable|caillou/i], ['vernis', /vernis|vitrificat/i],
+    ['peinture', /peinture|acrylique|bombe|spray|glyc/i], ['colle', /colle|cyano|n[eé]opr|pistolet|glue/i],
+    ['filament', /filament|\bpla\b|petg|\babs\b/i], ['connectee', /esp32|esp8266|wi-?fi|relais|arduino|module/i],
+    ['eclairage', /\bled\b|ruban|lumi|ampoule|c[aâ]ble|fil [ée]lec|pile|interrupteur|lampadaire/i]
+  ];
+  const nb = s => parseFloat(String(s).replace(',', '.'));
+  // Repère nom, dimensions, conditionnement, prix, magasin et catégorie dans un texte lu
+  function analyserTexte(txt){
+    const lignes = txt.split('\n').map(l => l.trim()).filter(Boolean);
+    const r = { _texte: txt };
+    // Prix : « 18,90 € », « €18.90 », « 18€90 », « 18,90 EUR »
+    const prix = [];
+    txt.replace(/(\d{1,4})[,.](\d{2})\s*(?:€|eur\b|e\b)|€\s*(\d{1,4})[,.](\d{2})|(\d{1,4})\s*€\s*(\d{2})\b/gi, (m, a, b, c, d, e, f) => { prix.push(nb((a || c || e) + '.' + (b || d || f))); return m; });
+    if (!prix.length) txt.replace(/(?:prix|total|ttc)[^\d\n]{0,12}(\d{1,4})[,.](\d{2})/gi, (m, a, b) => { prix.push(nb(a + '.' + b)); return m; });
+    const prixUnit = /(\d{1,4})[,.](\d{2})\s*€?\s*\/\s*(m|ml|m²|m2|kg|l|u)\b/gi; let pu; const exclus = new Set();
+    while ((pu = prixUnit.exec(txt))) exclus.add(nb(pu[1] + '.' + pu[2]));   // prix au mètre / au kg : pas le prix de l'article
+    const candidats = prix.filter(p => p > 0 && !exclus.has(p));
+    if (candidats.length) r.prix = Math.max(...candidats);
+    // Dimensions : 27 x 27 mm, 2,40 m, 240 cm, 200x12 mm, ép. 3 mm, 1 kg, 1,75 mm
+    const dims = []; let m;
+    const reSec = /(\d+(?:[,.]\d+)?)\s*[x×X\*]\s*(\d+(?:[,.]\d+)?)(?:\s*[x×X\*]\s*(\d+(?:[,.]\d+)?))?\s*(mm|cm|m)\b/g;
+    while ((m = reSec.exec(txt))) dims.push(m[0].replace(/\s*[x×X\*]\s*/g, ' × ').replace('.', ','));
+    let longueurM = 0;
+    const reLong = /(?:long(?:ueur)?\.?|l\.?|lg\.?)\s*:?\s*(\d+(?:[,.]\d+)?)\s*(mm|cm|m)\b|\b(\d+(?:[,.]\d+)?)\s*(m|cm)\b(?!\s*[x×²2])/gi;
+    while ((m = reLong.exec(txt))) {
+      const v = nb(m[1] || m[3]), u = (m[2] || m[4]).toLowerCase(), enM = u === 'mm' ? v / 1000 : u === 'cm' ? v / 100 : v;
+      if (enM >= 0.2 && enM <= 6 && !longueurM) { longueurM = Math.round(enM * 100) / 100; dims.push('long. ' + String(longueurM).replace('.', ',') + ' m'); }
+    }
+    const kg = /(\d+(?:[,.]\d+)?)\s*(kg|g)\b/i.exec(txt);
+    if (kg) dims.push(kg[1].replace('.', ',') + ' ' + kg[2].toLowerCase());
+    if (dims.length) r.dims = [...new Set(dims)].join(', ');
+    // Conditionnement : lot de 10, botte de 10, paquet de 5, x10, 10 pièces
+    const cond = /(lot|botte|paquet|pack|sachet|bo[iî]te|carton|rouleau)\s*(?:de)?\s*(\d+)/i.exec(txt) || /(\d+)\s*(pi[eè]ces|pcs|unit[ée]s)\b/i.exec(txt) || /(?<![\d,.]\s?)\b[x×]\s?(\d{1,3})\b(?![,.]?\d|\s*(?:mm|cm|m)\b)/.exec(txt);
+    let n = 1;
+    if (cond) { n = parseInt(cond[2] || cond[1], 10) || 1; r.cond = cond[2] ? (cond[1].toLowerCase() + ' de ' + n) : (n + ' pièces'); }
+    // Magasin
+    const mag = MAGASINS.find(x => new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i').test(txt));
+    if (mag) r.fournisseur = mag;
+    // Référence : « réf. 12345678 », « EAN 3 ... »
+    const ref = /(?:r[ée]f(?:[ée]rence)?\.?|code|ean)\s*:?\s*([A-Z0-9][A-Z0-9\- ]{4,16})/i.exec(txt);
+    if (ref) r.ref = ref[1].trim();
+    // Nom : la ligne qui ressemble le plus à un nom de produit (des lettres, pas un prix ni une adresse)
+    const score = l => { const lettres = (l.match(/[a-zàâçéèêëîïôûùüÿœ]/gi) || []).length; if (lettres < 5) return -1;
+      let s = lettres - (l.match(/\d/g) || []).length * 0.5;
+      if (/€|eur\b|prix|total|tva|ttc|livraison|panier|ajouter|quantit|stock|avis|retrait|magasin|www\.|http|tél|siret|merci/i.test(l)) s -= 40;
+      if (MAGASINS.some(x => l.toLowerCase().includes(x.toLowerCase()))) s -= 30;
+      if (MOTS_CAT.some(([, re]) => re.test(l))) s += 25;
+      return s; };
+    const meilleure = lignes.map(l => [l, score(l)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
+    if (meilleure) r.nom = meilleure[0].replace(/\s{2,}/g, ' ').replace(/^[^A-Za-zÀ-ÿ]+/, '').replace(/[\s,;:\-–]+$/, '').slice(0, 70);
+    // Catégorie (d'après le nom, puis le texte entier)
+    const cat = MOTS_CAT.find(([, re]) => re.test(r.nom || '')) || MOTS_CAT.find(([, re]) => re.test(txt));
+    r.cat = cat ? cat[0] : 'autre';
+    // Contenu d'un achat dans l'unité de la catégorie
+    if ((r.cat === 'tasseaux' || r.cat === 'bois_jupe') && longueurM) r.qte = Math.round(n * longueurM * 100) / 100;
+    else if (r.cat === 'filament' && kg) r.qte = kg[2].toLowerCase() === 'kg' ? nb(kg[1]) * n : nb(kg[1]) / 1000 * n;
+    else if (cond) r.qte = n;
+    // Date (ticket) : 04/11/2026 ou 04-11-26
+    const d = /\b(\d{2})[\/.\-](\d{2})[\/.\-](\d{2,4})\b/.exec(txt);
+    if (d) { const an = d[3].length === 2 ? '20' + d[3] : d[3]; const iso = `${an}-${d[2]}-${d[1]}`; if (!isNaN(Date.parse(iso))) r.date = iso; }
+    // Total d'un ticket : la ligne TOTAL / À PAYER / CB l'emporte
+    const tot = /(?:total|a payer|à payer|net\s*a?\s*payer|montant|cb|carte)[^\d\n]{0,20}(\d{1,5})[,.](\d{2})/i.exec(txt);
+    if (tot) r.total = nb(tot[1] + '.' + tot[2]);
+    return r;
+  }
+  function choisirPhoto(cb){
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try { cb(analyserTexte(await lirePhoto(f))); }
+      catch (e) { ocrInfo(''); alert('Lecture impossible : ' + e.message); }
+    });
+    inp.click();
+  }
+  document.getElementById('btnCatPhoto').addEventListener('click', () => choisirPhoto(r => {
+    if (!r.nom && !r.prix && !r.dims) alert('Je n\'ai pas trouvé d\'informations lisibles. Essaie une photo plus nette et bien droite, ou remplis l\'article à la main.');
+    catPrefill = r; catEdit = 'new'; catTicket = null; renderCatalogue();
+  }));
   document.getElementById('btnCatalogue').addEventListener('click', () => toggleCatalogue(true));
   document.getElementById('btnCatBack').addEventListener('click', () => toggleCatalogue(false));
   document.getElementById('btnCatAdd').addEventListener('click', () => { catEdit = 'new'; catTicket = null; renderCatalogue(); });
