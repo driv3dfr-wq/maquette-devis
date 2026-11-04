@@ -3245,6 +3245,11 @@
   syncAllRates();
   showStep(1);
   majBoutonProjets();
+// Molette : ne jamais modifier une case numérique en faisant défiler la page
+document.addEventListener('wheel', function(e){
+  const el = document.activeElement;
+  if (el && el.tagName === 'INPUT' && el.type === 'number' && e.target === el) { el.blur(); }
+}, { passive: true });
 </script>
 
 <div id="pitchOverlay">
