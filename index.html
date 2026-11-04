@@ -326,10 +326,17 @@
     display:none; }
   .print-btn:hover{ background:#2a5580; }
   @media print{
-    .topbar,.ruler,.controls,#btnPrev,#btnNext,.file-actions,.devis-tabs,.print-btn{ display:none !important; }
-    .tab-pane{ display:block !important; }
-    .sheet::before{ display:none; }
+    @page{ size:A4; margin:12mm 12mm 14mm; }
+    html,body{ background:#fff !important; }
+    body{ background-image:none !important; }
+    .topbar,.ruler,.controls,#btnPrev,#btnNext,.file-actions,.devis-tabs,.print-btn,#pitchBtnWrap,.library-view,header{ display:none !important; }
+    .sheet{ border:0 !important; box-shadow:none !important; padding:0 !important; margin:0 !important; background:#fff !important; }
+    .sheet::before,.sheet::after{ display:none !important; }
     .page{ padding:0; max-width:100%; }
+    .step:not([data-step="6"]){ display:none !important; }
+    #tabClient .choix,#bonAccord,.chart-section,.client-qr-wrap{ break-inside:avoid; }
+    .choix h4{ break-after:avoid; }
+    * { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   }
 
 
@@ -1426,7 +1433,7 @@
     });
     document.getElementById('curStep').textContent = n > 2 ? n - 1 : n;
     document.getElementById('btnPrev').disabled = (n === 1);
-    document.getElementById('btnNext').textContent = (n === totalSteps) ? 'Terminer' : 'Suivant →';
+    document.getElementById('btnNext').textContent = (n === totalSteps) ? '📄 Devis en PDF' : 'Suivant →';
     if (n === 1) updateSurfaceDisplay();
     if (n === 6){ renderClientView(); }
     currentStep = n;
@@ -2009,7 +2016,7 @@
   document.getElementById('param_charges').addEventListener('input', syncAllRates);
 
   // ---------- Wiring ----------
-  document.getElementById('btnNext').addEventListener('click', () => { readFormIntoState(); if (currentStep < totalSteps) showStep(currentStep + 1); else exportProject(); });
+  document.getElementById('btnNext').addEventListener('click', () => { readFormIntoState(); if (currentStep < totalSteps) showStep(currentStep + 1); else imprimerDevis(); });
   document.getElementById('btnPrev').addEventListener('click', () => { readFormIntoState(); if (currentStep > 1) showStep(currentStep === 3 ? 1 : currentStep - 1); });
   ['d_longueur','d_largeur','d_jardin','p_echelle','p_echelle_custom'].forEach(id => document.getElementById(id).addEventListener('input', updateSurfaceDisplay));
   document.querySelectorAll('.ruler li').forEach(li => li.addEventListener('click', () => { readFormIntoState(); showStep(parseInt(li.dataset.step)); }));
@@ -3009,6 +3016,20 @@
     alert('Réglages mis à jour et projet enregistré.\nPrix : ' + f(avant) + ' → ' + f(apres));
   });
 
+  // Imprime / enregistre en PDF uniquement le devis client (onglet Vue client), nom de fichier = n° de devis + client
+  function imprimerDevis(){
+    readFormIntoState();
+    const t = document.querySelector('.devis-tab[data-tab="client"]');
+    if (currentStep !== totalSteps) showStep(totalSteps);
+    if (t && !t.classList.contains('active')) t.click();
+    computeAndRenderResult(true);
+    const pr = state.projet, titre = document.title;
+    document.title = ['Devis', pr.numero_devis, pr.client || pr.nom].filter(Boolean).join(' ').replace(/[\\/:*?"<>|]/g, ' ').trim();
+    const remettre = () => { document.title = titre; window.removeEventListener('afterprint', remettre); };
+    window.addEventListener('afterprint', remettre);
+    setTimeout(() => { window.print(); setTimeout(remettre, 1500); }, 150);
+  }
+
   // Sauvegarder automatiquement quand on quitte une étape
   const _origRead = readFormIntoState;
   // On surcharge readFormIntoState pour déclencher la sauvegarde des params
@@ -3545,7 +3566,7 @@ document.addEventListener('wheel', function(e){
   <div class="pitch-chart" id="pitchChartWrap"><div class="pitch-amount-label" style="text-align:center;margin-bottom:10px;">Répartition des coûts</div><div style="position:relative;height:100%;"><canvas id="pitchChart"></canvas></div></div>
   <div class="pitch-devis" id="pitchNumero"></div>
 </div>
-<button class="print-btn" id="printFloatBtn" onclick="window.print()">Imprimer</button>
+<button class="print-btn" id="printFloatBtn" onclick="imprimerDevis()">📄 Devis en PDF</button>
 
 <script>
   // Appli installable : copie hors ligne (uniquement quand la page est servie en https ou localhost)
