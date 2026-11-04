@@ -406,6 +406,9 @@
   .ach-table tr.ach-ok td{ color:var(--ink-soft); }
   .ach-table tr.ach-ok td:first-child{ text-decoration:line-through; }
   .cat-hist{ font-size:12px; color:var(--ink-soft); }
+  .alertes-box{ border:1.5px solid #c47a1a; background:#fff6e6; border-radius:var(--radius); padding:10px 14px; margin:14px 0 18px; font-size:13px; }
+  .alertes-titre{ font-weight:700; color:#9a5a00; margin-bottom:4px; }
+  .alertes-box ul{ margin:0; padding-left:18px; } .alertes-box li{ margin:4px 0; }
   .cat-lien{ font-size:12px; font-weight:600; color:var(--blue); white-space:nowrap; }
   .cat-hist summary{ cursor:pointer; }
   .cat-hist ul{ margin:4px 0 0 16px; padding:0; }
@@ -807,6 +810,7 @@
       <h2>Finitions &amp; options</h2>
       <p class="hint">Cocher les éléments inclus dans cette maquette.</p>
       <div class="option-grid" id="optionGrid"></div>
+      <div id="alertesOptions"></div>
     </section>
 
     <!-- STEP 4 -->
@@ -871,6 +875,9 @@
       <div class="field-grid">
         <div class="field"><label for="param_elec_int_dessin_h">Élec. intérieure — dessin</label><input type="number" id="param_elec_int_dessin_h" step="0.5"><span class="unit">h (schéma, passages, découpes)</span></div>
         <div class="field"><label for="param_elec_ext_dessin_h">Élec. extérieure — dessin</label><input type="number" id="param_elec_ext_dessin_h" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_eclairage_int_max_m2">Éclairage intérieur — taille maximum</label><input type="number" id="param_eclairage_int_max_m2" step="500"><span class="unit">m² de plancher (au-delà, l'option est bloquée)</span></div>
+        <div class="field"><label for="param_alerte_pct">Alerte poste lourd</label><input type="number" id="param_alerte_pct" step="1"><span class="unit">% du devis pour une seule option (et au moins 1 000 €)</span></div>
+        <div class="field"><label for="param_alerte_impr_h">Alerte impression longue</label><input type="number" id="param_alerte_impr_h" step="50"><span class="unit">h machine</span></div>
         <div class="field"><label for="param_elec_int_montage_base">Élec. intérieure — montage</label><input type="number" id="param_elec_int_montage_base" step="0.5"><span class="unit">h de base</span></div>
         <div class="field"><label for="param_elec_int_montage_50">Élec. intérieure — montage en plus</label><input type="number" id="param_elec_int_montage_50" step="0.5"><span class="unit">h par tranche de 50 m² de bâtiment</span></div>
         <div class="field"><label for="param_elec_ext_montage_base">Élec. extérieure — montage</label><input type="number" id="param_elec_ext_montage_base" step="0.5"><span class="unit">h de base</span></div>
@@ -973,6 +980,7 @@
 
     <!-- STEP 6 -->
     <section class="step" data-step="6">
+      <div id="alertesDevis" class="no-print"></div>
       <div class="devis-tabs">
         <button class="devis-tab active" data-tab="client">Vue client</button>
         <button class="devis-tab" data-tab="detail">Estimatif détaillé</button>
@@ -1330,7 +1338,7 @@
   function defaultParams(){
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
-      etage_repete_pct:25, masse_m2:0.01, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
+      etage_repete_pct:25, masse_m2:0.01, eclairage_int_max_m2:5000, alerte_pct:15, alerte_impr_h:500, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
       dessin_brut_base:1, dessin_brut_m2:0.03, dessin_std_base:1.5, dessin_std_m2:0.04, dessin_det_base:2, dessin_det_m2:0.055,
       plans_papier_m2:0.03, releve_m2_h:0.02, dessin_seuil1:1500, dessin_pct1:5, dessin_seuil2:5000, dessin_pct2:0,
       filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
@@ -1442,6 +1450,7 @@
     document.getElementById('btnNext').textContent = (n === totalSteps) ? '📄 Devis en PDF' : 'Suivant →';
     { const pb = document.getElementById('printFloatBtn'); if (pb && n !== totalSteps) pb.style.display = 'none'; }
     if (n === 1) updateSurfaceDisplay();
+    if (n === 3) { readFormIntoState(); renderOptions(); renderAlertes(); }
     if (n === 6){ renderClientView(); }
     currentStep = n;
   }
@@ -1510,7 +1519,7 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','eclairage_int_max_m2','alerte_pct','alerte_impr_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.deplacement_tranche = parseFloat(document.getElementById('param_deplacement_tranche').value) || 0;
     p.cloche_forfait = parseFloat(document.getElementById('param_cloche_forfait').value) || 0;
@@ -1576,7 +1585,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','eclairage_int_max_m2','alerte_pct','alerte_impr_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_deplacement_tranche').value = p.deplacement_tranche;
     document.getElementById('param_cloche_forfait').value = p.cloche_forfait;
@@ -1609,13 +1618,44 @@
   });
 
   // ---------- Renderers ----------
+  // Éclairage intérieur impossible au-delà d'une certaine surface de plancher (immeubles)
+  function eclIntTropGrand(){
+    const L = parseFloat(state.dimensions.longueur) || 0, W = parseFloat(state.dimensions.largeur) || 0, e = Math.max(1, parseInt(state.projet.etages) || 1);
+    const max = (state.params && state.params.eclairage_int_max_m2) ?? 5000;
+    return max > 0 && L * W * e > max;
+  }
+  // Alertes : options qui pèsent lourd dans le devis, impression très longue
+  const CONSEILS = { mobilier:'Proposer un seul logement témoin meublé, à négocier avec le client.', eclairage_interieur:'Proposer un éclairage partiel ou d\'ambiance, à négocier.',
+    eclairage_exterieur:'Limiter aux façades principales ou à l\'entrée.', jardin_amenage:'Simplifier le jardin (pelouse et allées seulement).', murs_ouvrages:'Garder les murs ouvragés pour la façade principale.', connectee:'' };
+  function calculAlertes(){
+    const p = state.params || {}, A = [];
+    let d0; try { d0 = computeAndRenderResult(true); } catch(e) { return A; }
+    const total = d0.totalAvantRemise || d0.totalTTC || 0; if (!(total > 0)) return A;
+    const pct = (p.alerte_pct ?? 15) / 100;
+    optionDefs.forEach(od => {
+      if (!state.options[od.key] || od.key === 'exterieur_seul' || od.key === 'express') return;
+      const d1 = simuler(st => { st.options[od.key] = false; });
+      const cout = total - (d1.totalAvantRemise || d1.totalTTC || 0);
+      if (cout >= 1000 && cout > total * pct) A.push(`<strong>${od.label}</strong> : ${Math.round(cout).toLocaleString('fr-FR')} € (${Math.round(cout / total * 100)} % du devis). Poste long et cher. ${CONSEILS[od.key] || ''}`);
+    });
+    const hImpr = (d0.forfaits.find(f => /^Impression 3D/.test(f.label)) || {}).cost / (p.machine_h || 1);
+    if (hImpr > (p.alerte_impr_h ?? 500)) A.push(`<strong>Impression</strong> : ${Math.round(hImpr).toLocaleString('fr-FR')} h machine, soit environ ${Math.ceil(hImpr / 24)} jours à 24 h/24 sur une imprimante. Vérifie le délai annoncé.`);
+    if (eclIntTropGrand()) A.push(`<strong>Éclairage intérieur</strong> : indisponible, le bâtiment dépasse ${(p.eclairage_int_max_m2 ?? 5000).toLocaleString('fr-FR')} m² de plancher.`);
+    return A;
+  }
+  function renderAlertes(){
+    let A = []; try { A = calculAlertes(); } catch(e) {}
+    const html = A.length ? `<div class="alertes-box"><div class="alertes-titre">⚠ À surveiller avant d'envoyer le devis</div><ul>${A.map(a => '<li>' + a + '</li>').join('')}</ul></div>` : '';
+    ['alertesOptions', 'alertesDevis'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+  }
   function renderOptions(){
     const grid = document.getElementById('optionGrid');
     grid.innerHTML = '';
     optionDefs.forEach(o => {
       const sansEclairage = !(state.options.eclairage_interieur || state.options.eclairage_exterieur);
       const horsExt = state.options.exterieur_seul && (o.key === 'eclairage_interieur' || o.key === 'mobilier');
-      const locked = (o.requiresJardin && !state.options.jardin_amenage) || (o.requiresEclairage && sansEclairage) || horsExt;
+      const tropGrand = o.key === 'eclairage_interieur' && eclIntTropGrand();
+      const locked = (o.requiresJardin && !state.options.jardin_amenage) || (o.requiresEclairage && sansEclairage) || horsExt || tropGrand;
       if (locked) state.options[o.key] = false;
       const checked = !!state.options[o.key];
       const card = document.createElement('label');
@@ -1624,12 +1664,13 @@
         <input type="checkbox" id="opt_${o.key}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>
         <span>
           <span class="opt-title">${o.label}</span>
-          <span class="opt-desc">${o.desc}${locked ? (horsExt ? ' Indisponible avec « Extérieur seul ».' : o.requiresEclairage ? ' Nécessite un éclairage intérieur ou extérieur.' : ' Nécessite l\u2019option Jardin aménagé.') : ''}</span>
+          <span class="opt-desc">${o.desc}${locked ? (horsExt ? ' Indisponible avec « Extérieur seul ».' : tropGrand ? ` Indisponible au-delà de ${(state.params.eclairage_int_max_m2 ?? 5000).toLocaleString('fr-FR')} m² de plancher (réglable dans Paramètres).` : o.requiresEclairage ? ' Nécessite un éclairage intérieur ou extérieur.' : ' Nécessite l\u2019option Jardin aménagé.') : ''}</span>
         </span>`;
       card.querySelector('input').addEventListener('change', (e) => {
         state.options[o.key] = e.target.checked;
         if (['jardin_amenage','eclairage_interieur','eclairage_exterieur','exterieur_seul'].includes(o.key)) renderOptions();
         else { card.classList.toggle('checked', e.target.checked); }
+        renderAlertes();
       });
       grid.appendChild(card);
     });
@@ -1685,7 +1726,7 @@
     // Périmètre du SOCLE de la maquette (m) : contour du bâtiment, ou du terrain carré équivalent s'il y a un jardin
     const perimetre   = Math.max(2 * (longueur + largeur) / ev, SjardinReel > 0 ? 4 * Math.sqrt(SbaseReel) / ev : 0);
     const ext = !!state.options.exterieur_seul;
-    const o = ext ? Object.assign({}, state.options, { eclairage_interieur:false, mobilier:false }) : state.options, p = state.params;
+    const o = (ext || eclIntTropGrand()) ? Object.assign({}, state.options, ext ? { eclairage_interieur:false, mobilier:false } : { eclairage_interieur:false }) : state.options, p = state.params;
     const kExtDessin = ext ? 1 - (p.ext_dessin_pct ?? 40) / 100 : 1;   // façades et toiture seules
     const kExtImpr   = ext ? 1 - (p.ext_impr_pct ?? 50) / 100 : 1;     // coque creuse
     const Ccond = o.jardin_amenage || o.eclairage_interieur || o.eclairage_exterieur;
@@ -2368,6 +2409,7 @@
     document.querySelector('.choix-ctrl').style.display = vueFacture ? 'none' : '';
     document.getElementById('bonAccord').style.display = vueFacture ? 'none' : '';
     if (vueFacture) document.getElementById('choixContainer').innerHTML = ''; else renderChoix(fmt);
+    renderAlertes();
 
     // ---- Pitch button ----
     const existingPitch = document.getElementById('pitchBtnWrap');
