@@ -697,7 +697,7 @@
             <option>Autre</option>
           </select>
         </div>
-        <div class="field"><label for="p_etages">Nombre d'étages</label><input type="number" id="p_etages" min="0" step="1" placeholder="Ex. 2"></div>
+        <div class="field"><label for="p_etages">Nombre d'étages</label><input type="number" id="p_etages" min="0" step="1" placeholder="Ex. 2"><label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-top:6px;font-weight:400;"><input type="checkbox" id="p_sous_sol" style="width:auto;"> dont 1 sous-sol / garage (sans mobilier ni éclairage intérieur)</label></div>
       </div>
 
       <h3>Dimensions</h3>
@@ -814,6 +814,8 @@
     <section class="step" data-step="5" id="step5">
       <h2>Paramètres de calcul</h2>
       <p class="hint">Ces valeurs s'appliquent à tous tes devis. Modifie-les ici une fois ; chaque projet les réutilise automatiquement.</p>
+      <div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--paper-dim);padding:10px 12px;border-radius:var(--radius);">Un projet enregistré garde les réglages qu'il avait au moment du devis.
+        <button type="button" class="btn" id="btnParamsActuels">↻ Passer ce projet aux réglages actuels</button></div>
 
       <h3>Taux horaires</h3>
       <p class="hint" style="margin-top:-10px;">Modifie l'un ou l'autre — les deux cases se mettent à jour automatiquement selon le taux de charges défini en bas de page. Le calcul utilise toujours la valeur <strong>sans charges</strong>.</p>
@@ -1446,6 +1448,7 @@
     state.projet.echelleCustom = document.getElementById('p_echelle_custom').value;
     state.projet.type = document.getElementById('p_type').value;
     state.projet.etages = document.getElementById('p_etages').value;
+    state.projet.sous_sol = document.getElementById('p_sous_sol').checked;
     state.projet.plans2d = document.getElementById('p_plans2d').value;
     state.projet.deplacement = document.getElementById('p_deplacement').checked;
     state.projet.distance = document.getElementById('p_distance').value;
@@ -1521,6 +1524,7 @@
     document.getElementById('p_echelle_custom_wrap').style.display = (state.projet.echelle === 'custom') ? 'flex' : 'none';
     document.getElementById('p_type').value = state.projet.type;
     document.getElementById('p_etages').value = state.projet.etages;
+    document.getElementById('p_sous_sol').checked = !!state.projet.sous_sol;
     document.getElementById('p_plans2d').value = state.projet.plans2d;
     document.getElementById('p_deplacement').checked = state.projet.deplacement;
     document.getElementById('p_distance_wrap').style.display = state.projet.deplacement ? 'flex' : 'none';
@@ -1682,7 +1686,9 @@
     const fDeg       = effTotal > 0 ? m2Degressifs(effTotal) / effTotal : 1;   // part dégressive appliquée à tous les bâtiments
     const m2Dessin   = effTotal * fDeg;
     const fFab       = plancher > 0 ? m2Dessin / plancher : 1;   // même réduction (étages identiques + dégressif) pour l'assemblage
-    const m2Princ    = effPrinc * fDeg;                            // bâtiment principal, en m² comptés
+    // Sous-sol / garage : compté comme un étage en plus (25 %) mais sans mobilier ni éclairage intérieur
+    const effSousSol = (state.projet.sous_sol && nbEtages > 1) ? longueur * largeur * ((p.etage_repete_pct ?? 25) / 100) : 0;
+    const m2Princ    = (effPrinc - effSousSol) * fDeg;             // bâtiment principal habité, en m² comptés
     const fDegD      = effTotal > 0 ? m2DessinDegr(effTotal) / effTotal : 1;   // dégressif propre au dessin
     const m2D        = effTotal * fDegD;
     const niv        = nivDessin(state.projet.niveau);
@@ -2964,24 +2970,44 @@
     } catch(e){ /* silencieux si localStorage indisponible */ }
   }
 
+  // Réglages de l'appareil (ceux des nouveaux devis), avec mise à jour des anciens réglages par défaut
+  function paramsGlobaux(){
+    const saved = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e){ return {}; } })();
+    if (!saved.params) return defaultParams();
+    migrerParams_(saved);
+    return majParams(Object.assign(defaultParams(), saved.params));
+  }
+  function migrerParams_(saved){
+        const anciens = { dessin_brut_base:4, dessin_std_base:6, dessin_std_m2:0.1, dessin_det_base:8, dessin_det_m2:0.2, flocage:6, gravier:6.5, delai_fab:'4 à 6 semaines', cloche_forfait:400, cloche_tranche:100, cadre_forfait:400, cadre_tranche:100 };
+        const neufs = defaultParams();
+        Object.keys(anciens).forEach(k => { if (saved.params[k] === anciens[k] || saved.params[k] === undefined) saved.params[k] = neufs[k]; });
+        const anciens2 = { dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.1, plans_papier_m2:0.05 };
+        Object.keys(anciens2).forEach(k => { if (saved.params[k] === anciens2[k]) saved.params[k] = neufs[k]; });
+  }
   function loadParams(){
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (saved.params){
-        // Anciens réglages par défaut → nouveaux (réglages validés sur « Maison Perso Test 1 », 04/11/2026)
-        const anciens = { dessin_brut_base:4, dessin_std_base:6, dessin_std_m2:0.1, dessin_det_base:8, dessin_det_m2:0.2, flocage:6, gravier:6.5, delai_fab:'4 à 6 semaines', cloche_forfait:400, cloche_tranche:100, cadre_forfait:400, cadre_tranche:100 };
-        const neufs = defaultParams();
-        Object.keys(anciens).forEach(k => { if (saved.params[k] === anciens[k] || saved.params[k] === undefined) saved.params[k] = neufs[k]; });
-        // Calibrage du dessin sur les heures réelles (Troyes, Sainte-Savine, Moët, 04/11/2026)
-        const anciens2 = { dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.1, plans_papier_m2:0.05 };
-        Object.keys(anciens2).forEach(k => { if (saved.params[k] === anciens2[k]) saved.params[k] = neufs[k]; });
+        // Anciens réglages par défaut → nouveaux (Maison Perso Test 1, puis calibrage du dessin sur Troyes, Sainte-Savine, Moët, 04/11/2026)
+        migrerParams_(saved);
         state.params = majParams(Object.assign(defaultParams(), saved.params));
       }
       if (saved.materiaux && Array.isArray(saved.materiaux)) state.materiaux = saved.materiaux;
     } catch(e){ /* silencieux */ }
   }
+
+  document.getElementById('btnParamsActuels').addEventListener('click', () => {
+    if (!confirm('Remplacer les réglages de ce projet par les réglages actuels ? Le prix du devis sera recalculé.')) return;
+    const avant = computeAndRenderResult().totalTTC;
+    state.params = paramsGlobaux();
+    writeStateIntoForm(); syncAllRates();
+    const apres = computeAndRenderResult(true).totalTTC;
+    libAdd(state);
+    const f = n => Math.round(n).toLocaleString('fr-FR') + ' €';
+    alert('Réglages mis à jour et projet enregistré.\nPrix : ' + f(avant) + ' → ' + f(apres));
+  });
 
   // Sauvegarder automatiquement quand on quitte une étape
   const _origRead = readFormIntoState;
