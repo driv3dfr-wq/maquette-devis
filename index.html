@@ -406,6 +406,14 @@
   .ach-table tr.ach-ok td{ color:var(--ink-soft); }
   .ach-table tr.ach-ok td:first-child{ text-decoration:line-through; }
   .cat-hist{ font-size:12px; color:var(--ink-soft); }
+  .pistes-liste{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+  .piste-carte{ background:#fff; border:1px solid #d9d4c8; border-radius:8px; padding:12px 14px; cursor:pointer; min-width:0; }
+  .piste-carte:hover{ border-color:var(--blue); }
+  .piste-tete{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; margin-bottom:4px; }
+  .piste-tete .bord-statut{ white-space:nowrap; font-size:11px; }
+  .piste-action{ font-size:13px; font-weight:600; color:var(--blue); margin-top:6px; } .piste-action.retard{ color:#a33; }
+  .piste-notes{ font-size:12px; color:var(--ink); margin-top:6px; white-space:pre-wrap; }
+  .piste-liens{ display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; font-size:12px; } .piste-liens a{ color:var(--blue); font-weight:600; }
   .alertes-box{ border:1.5px solid #c47a1a; background:#fff6e6; border-radius:var(--radius); padding:10px 14px; margin:14px 0 18px; font-size:13px; }
   .alertes-titre{ font-weight:700; color:#9a5a00; margin-bottom:4px; }
   .alertes-box ul{ margin:0; padding-left:18px; } .alertes-box li{ margin:4px 0; }
@@ -554,6 +562,7 @@
     <nav class="file-actions" aria-label="Actions">
       <button class="btn primary" id="btnLibrary">📁 Mes projets</button>
       <button class="btn" id="btnNew">＋ Nouveau devis</button>
+      <button class="btn" id="btnBord">📊 Tableau de bord</button>
       <button class="btn" id="btnSave" title="Enregistrer sur cet appareil et sur le Drive">💾 Enregistrer</button>
       <button class="drive-chip chrono-chip" id="chronoChip" style="display:none" title="Chrono en cours : ouvrir le suivi"></button>
       <button class="drive-chip" id="btnDrive" title="Synchronisation Google Drive">☁ Drive</button>
@@ -592,15 +601,33 @@
     </div>
 </div>
 
+<div class="library-view" id="bordView">
+    <div class="sheet" style="min-height:300px;">
+      <h2 style="font-family:'Architects Daughter',cursive;color:var(--blue);margin:0 0 4px 0;">Tableau de bord</h2>
+      <div class="lib-tabs">
+        <button class="lib-tab active" data-bordtab="bord">📊 Chiffres</button>
+        <button class="lib-tab" data-bordtab="pistes">🎯 Pistes</button>
+      </div>
+      <div class="lib-local-section active" id="bordStats"><div id="bordContainer"></div></div>
+      <div class="lib-local-section" id="bordPistes">
+        <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
+        <div style="margin:0 0 14px;"><button class="btn primary" id="btnPisteAdd">＋ Nouvelle piste</button></div>
+        <div id="pistesContainer"></div>
+      </div>
+    </div>
+    <div class="controls" style="margin-top:26px;">
+      <button class="btn" id="btnBordBack">← Retour au devis en cours</button>
+      <span></span>
+    </div>
+</div>
+
 <div class="library-view" id="libraryView">
     <div class="sheet" style="min-height:300px;">
       <h2 style="font-family:'Architects Daughter',cursive;color:var(--blue);margin:0 0 4px 0;">Mes projets</h2>
       <div class="lib-tabs">
         <button class="lib-tab active" data-libtab="local">💾 Cet appareil</button>
         <button class="lib-tab" data-libtab="drive">☁ Google Drive</button>
-        <button class="lib-tab" data-libtab="bord">📊 Tableau de bord</button>
       </div>
-      <div class="lib-local-section" id="libBordSection"><div id="bordContainer"></div></div>
       <div class="lib-local-section active" id="libLocalSection">
         <p class="hint" style="margin-bottom:14px;">Devis sauvegardés localement sur cet appareil.</p>
         <div id="libGrid" class="lib-grid"></div>
@@ -3422,9 +3449,7 @@
     document.querySelectorAll('.lib-tab').forEach(b => b.classList.toggle('active', b.dataset.libtab === tab));
     document.getElementById('libLocalSection').classList.toggle('active', tab === 'local');
     document.getElementById('libDriveSection').classList.toggle('active', tab === 'drive');
-    document.getElementById('libBordSection').classList.toggle('active', tab === 'bord');
     if (tab === 'drive') libRenderDrive();
-    if (tab === 'bord') renderTableauBord();
   }
 
   async function libRenderDrive() {
@@ -4009,6 +4034,100 @@ document.addEventListener('wheel', function(e){
     });
     if (!catDriveLu) catDriveLire().then(ch => { if (ch && document.getElementById('tabAchats').style.display !== 'none') renderAchatsTab(); });
   }
+</script>
+<script>
+  // ================= Tableau de bord (bouton du haut) + Pistes de prospection =================
+  const TYPES_PISTE = ['Domaine viticole / Champagne','Promoteur immobilier','Constructeur de maisons','Architecte','Particulier','Collectivité / réseau','Autre'];
+  const STATUTS_PISTE = [['idee','Idée','#7a7466'],['contacter','À contacter','#1B3A5C'],['contacte','Contacté','#2a7ab0'],['rdv','RDV / échange','#8a5cc2'],['devis','Devis envoyé','#c47a1a'],['gagne','Gagné','#2e7d4f'],['perdu','Perdu / pas intéressé','#a33']];
+  const PISTES_DEPART = [
+    { nom:'Domaines viticoles et maisons de Champagne', type:'Domaine viticole / Champagne', statut:'contacter', notes:'Maquettes très détaillées : chais, fûts, bouteilles, verdure. Aucun prix public chez les concurrents ; viser 3 500 à 8 000 € pour un domaine détaillé (étude concurrence).' },
+    { nom:'Promoteurs immobiliers (programmes neufs)', type:'Promoteur immobilier', statut:'contacter', notes:'Maquettes de vente : marché à partir d\'environ 4 000 € HT (étude concurrence). Immeubles : éclairage intérieur bloqué au-delà de 5 000 m², proposer un logement témoin meublé.' },
+    { nom:'Constructeurs de maisons individuelles', type:'Constructeur de maisons', statut:'contacter', notes:'Maquette de maison sur catalogue ou pour leurs clients. Cible citée sur le site.' },
+    { nom:'Architectes', type:'Architecte', statut:'contacter', notes:'Maquettes de concours ou de présentation client, souvent en Brut ou Standard (rendu blanc). Cible citée sur le site.' },
+    { nom:'Particuliers : maquette de leur maison', type:'Particulier', statut:'contacter', notes:'Exemple du pavillon sur le site : 2 228 € (Détaillé, jardin, mobilier, éclairages). Avantage franchise de TVA : pas de TVA à payer.' },
+    { nom:'Concours et aides Champagne-Ardenne', type:'Collectivité / réseau', statut:'idee', notes:'Concours auto-entrepreneurs, aides de la Région, Chambre de métiers. Accessible avec une adresse d\'entreprise locale.' },
+    { nom:'Fiche Google « maquettiste près de chez moi »', type:'Collectivité / réseau', statut:'idee', notes:'Créer la fiche d\'établissement avec l\'adresse locale, photos des réalisations et lien vers le site.' }
+  ];
+  let pisteEdit = null, pisteFiltre = '';
+  function pistes(){
+    if (!Array.isArray(catalogue.pistes)) {
+      catalogue.pistes = PISTES_DEPART.map((p, i) => Object.assign({ id:'pi' + Date.now().toString(36) + i, cree: new Date().toISOString().slice(0, 10) }, p));
+      catSave();
+    }
+    return catalogue.pistes;
+  }
+  function toggleBord(show, onglet){
+    ['libraryView','catalogueView'].forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById('bordView').classList.toggle('active', show);
+    document.getElementById('wizardView').classList.toggle('hidden', show);
+    if (show) { window.scrollTo(0, 0); bordOnglet(onglet || 'bord'); catDriveLire(true).then(ch => { if (ch && document.getElementById('bordPistes').classList.contains('active')) renderPistes(); }); }
+  }
+  function bordOnglet(t){
+    document.querySelectorAll('[data-bordtab]').forEach(b => b.classList.toggle('active', b.dataset.bordtab === t));
+    document.getElementById('bordStats').classList.toggle('active', t === 'bord');
+    document.getElementById('bordPistes').classList.toggle('active', t === 'pistes');
+    if (t === 'bord') renderTableauBord(); else renderPistes();
+  }
+  function pisteFormHTML(p){
+    const e = escapeHtml, v = x => e(String(x ?? ''));
+    return `<div class="cat-art-form" id="pisteForm">
+      <div style="grid-column:1/-1;"><label>Piste (entreprise, personne, idée)</label><input id="pf_nom" value="${v(p.nom)}" placeholder="ex. Domaine X, promoteur Y"></div>
+      <div><label>Type</label><select id="pf_type">${TYPES_PISTE.map(t => `<option${t === p.type ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Statut</label><select id="pf_statut">${STATUTS_PISTE.map(s => `<option value="${s[0]}"${s[0] === (p.statut || 'contacter') ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></div>
+      <div><label>Contact</label><input id="pf_contact" value="${v(p.contact)}" placeholder="nom, adresse"></div>
+      <div><label>Téléphone</label><input id="pf_tel" type="tel" value="${v(p.tel)}"></div>
+      <div><label>E-mail</label><input id="pf_mail" type="email" value="${v(p.mail)}"></div>
+      <div><label>Ville</label><input id="pf_ville" value="${v(p.ville)}"></div>
+      <div><label>Site web</label><input id="pf_site" type="url" value="${v(p.site)}" placeholder="https://…"></div>
+      <div><label>Prochaine action</label><input id="pf_action" value="${v(p.action)}" placeholder="ex. appeler, envoyer la plaquette"></div>
+      <div><label>Pour le</label><input id="pf_date" type="date" value="${v(p.date)}"></div>
+      <div style="grid-column:1/-1;"><label>Notes</label><textarea id="pf_notes" rows="3" style="width:100%;">${e(p.notes || '')}</textarea></div>
+      <div class="full">${p.id ? '<button class="btn" id="pf_suppr" style="margin-right:auto;">Supprimer</button>' : ''}<button class="btn" id="pf_annuler">Annuler</button><button class="btn primary" id="pf_ok">Enregistrer</button></div>
+    </div>`;
+  }
+  function renderPistes(){
+    const box = document.getElementById('pistesContainer'); if (!box) return;
+    const P = pistes();
+    const statut = id => STATUTS_PISTE.find(s => s[0] === id) || STATUTS_PISTE[1];
+    const auj = new Date().toISOString().slice(0, 10);
+    const compte = STATUTS_PISTE.map(s => { const n = P.filter(p => (p.statut || 'contacter') === s[0]).length;
+      return n ? `<button class="bord-statut" data-filtre="${s[0]}" style="border-color:${s[2]};color:${s[2]};cursor:pointer;${pisteFiltre === s[0] ? `background:${s[2]};color:#fff;` : ''}">${s[1]} : ${n}</button>` : ''; }).join('');
+    const L = P.filter(p => !pisteFiltre || (p.statut || 'contacter') === pisteFiltre)
+      .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.nom || '').localeCompare(b.nom || ''));
+    let html = pisteEdit ? pisteFormHTML(pisteEdit === 'new' ? {} : (P.find(p => p.id === pisteEdit) || {})) : '';
+    html += `<div class="bord-statuts" style="margin:0 0 14px;">${compte}${pisteFiltre ? ' <button class="btn" data-filtre="" style="padding:2px 10px;font-size:12px;">Tout afficher</button>' : ''}</div>`;
+    html += L.length ? `<div class="pistes-liste">${L.map(p => { const s = statut(p.statut || 'contacter'); const retard = p.date && p.date < auj && !['gagne','perdu'].includes(p.statut);
+      return `<div class="piste-carte" data-ed="${p.id}">
+        <div class="piste-tete"><strong>${escapeHtml(p.nom || 'Sans nom')}</strong><span class="bord-statut" style="border-color:${s[2]};color:${s[2]}">${s[1]}</span></div>
+        <div class="cat-hist">${escapeHtml(p.type || '')}${p.ville ? ' · ' + escapeHtml(p.ville) : ''}${p.contact ? ' · ' + escapeHtml(p.contact) : ''}</div>
+        ${p.action || p.date ? `<div class="piste-action${retard ? ' retard' : ''}">➜ ${escapeHtml(p.action || 'À faire')}${p.date ? ' · ' + new Date(p.date).toLocaleDateString('fr-FR') : ''}${retard ? ' (en retard)' : ''}</div>` : ''}
+        ${p.notes ? `<div class="piste-notes">${escapeHtml(p.notes)}</div>` : ''}
+        <div class="piste-liens">${p.tel ? `<a href="tel:${escapeHtml(p.tel.replace(/\s/g, ''))}">📞 ${escapeHtml(p.tel)}</a>` : ''}${p.mail ? `<a href="mailto:${escapeHtml(p.mail)}">✉ E-mail</a>` : ''}${p.site ? `<a href="${escapeHtml(lienPropre(p.site))}" target="_blank" rel="noopener">🔗 Site</a>` : ''}</div>
+      </div>`; }).join('')}</div>` : '<p class="hint">Aucune piste dans cette catégorie.</p>';
+    box.innerHTML = html;
+    box.querySelectorAll('[data-filtre]').forEach(b => b.addEventListener('click', () => { pisteFiltre = pisteFiltre === b.dataset.filtre ? '' : b.dataset.filtre; renderPistes(); }));
+    box.querySelectorAll('.piste-carte').forEach(c => c.addEventListener('click', e => { if (e.target.closest('a')) return; pisteEdit = c.dataset.ed; renderPistes(); }));
+    const f = document.getElementById('pisteForm');
+    if (f) {
+      const g = id => document.getElementById(id).value.trim();
+      document.getElementById('pf_annuler').addEventListener('click', () => { pisteEdit = null; renderPistes(); });
+      const sup = document.getElementById('pf_suppr');
+      if (sup) sup.addEventListener('click', () => { if (!confirm('Supprimer cette piste ?')) return; catalogue.pistes = P.filter(p => p.id !== pisteEdit); pisteEdit = null; catSave(); renderPistes(); });
+      document.getElementById('pf_ok').addEventListener('click', () => {
+        if (!g('pf_nom')) { alert('Donne un nom à la piste.'); return; }
+        let p = pisteEdit === 'new' ? null : P.find(x => x.id === pisteEdit);
+        if (!p) { p = { id:'pi' + Date.now().toString(36), cree: new Date().toISOString().slice(0, 10) }; P.push(p); }
+        Object.assign(p, { nom:g('pf_nom'), type:g('pf_type'), statut:g('pf_statut'), contact:g('pf_contact'), tel:g('pf_tel'), mail:g('pf_mail'), ville:g('pf_ville'), site:g('pf_site'), action:g('pf_action'), date:g('pf_date'), notes:document.getElementById('pf_notes').value.trim(), maj:new Date().toISOString().slice(0, 10) });
+        pisteEdit = null; catSave(); renderPistes();
+      });
+      f.scrollIntoView({ block:'nearest' });
+    }
+  }
+  document.getElementById('btnBord').addEventListener('click', () => toggleBord(true));
+  document.getElementById('btnBordBack').addEventListener('click', () => toggleBord(false));
+  document.getElementById('btnPisteAdd').addEventListener('click', () => { bordOnglet('pistes'); pisteEdit = 'new'; renderPistes(); });
+  document.querySelectorAll('[data-bordtab]').forEach(b => b.addEventListener('click', () => bordOnglet(b.dataset.bordtab)));
+  ['btnLibrary','btnNew','btnCatalogue'].forEach(id => document.getElementById(id).addEventListener('click', () => document.getElementById('bordView').classList.remove('active')));
 </script>
 <script>
   // Menu « Plus » : se ferme après un choix ou un clic ailleurs
