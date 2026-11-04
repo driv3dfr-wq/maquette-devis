@@ -1232,6 +1232,8 @@
     if (ac > 0) lignes.push(ac >= 100 ? `Règlement de ${fmt(total)} à la commande.`
       : `Acompte de ${ac} % à la commande, soit ${fmt(total * ac / 100)}. Solde de ${fmt(total * (1 - ac / 100))} à la livraison.`);
     if (p.delai_fab) lignes.push(`Délai de fabrication : ${escapeHtml(p.delai_fab)} après validation des plans${ac > 0 ? ' et réception de l\'acompte' : ''}.`);
+    const o = (state && state.options) || {};
+    if (o.cloche_plexi || o.cadre_metal) lignes.push(`${o.cloche_plexi && o.cadre_metal ? 'Cloche plexiglas et cadre métal' : o.cloche_plexi ? 'Cloche plexiglas' : 'Cadre métal'} : prix estimé, confirmé à la commande après devis du sous-traitant.`);
     let html = lignes.length ? `<tr><td class="label" colspan="2" style="font-size:12px;color:var(--ink-soft);padding-top:8px;line-height:1.5;">${lignes.join('<br>')}</td></tr>` : '';
     return html;
   }
@@ -1257,8 +1259,8 @@
       mobilier_tranche:30,
       releve_forfait:80, releve_tranche:50,
       deplacement_tranche:30,
-      cloche_forfait:400, cloche_tranche:100,
-      cadre_forfait:400, cadre_tranche:100,
+      cloche_forfait:300, cloche_tranche:15,
+      cadre_forfait:300, cadre_tranche:15,
       charges:25, marge:15, tva:0,
       elec_int_dessin_h:5, elec_ext_dessin_h:2, elec_int_montage_base:6, elec_int_montage_50:1.5, elec_ext_montage_base:5, elec_ext_montage_50:1,
       connectee_h_dessin:3, connectee_h_montage:2, connectee_mat:30, express_pct:20,
@@ -1998,6 +2000,7 @@
             Object.keys(st.options).forEach(k => st.options[k] = false);
             (st.materiaux || []).forEach(m => m.quantite = 0);
           }
+          if (f.toutes) Object.keys(st.options).forEach(k => st.options[k] = false);
           if (f.toutes) ['murs_ouvrages','jardin_amenage','eclairage_interieur','eclairage_exterieur','mobilier'].forEach(k => {
             if (k === 'jardin_amenage' && !(parseFloat(st.dimensions.jardin) > 0)) return;
             st.options[k] = true;
@@ -2795,7 +2798,7 @@
       const saved = JSON.parse(raw);
       if (saved.params){
         // Anciens réglages par défaut → nouveaux (réglages validés sur « Maison Perso Test 1 », 04/11/2026)
-        const anciens = { dessin_brut_base:4, dessin_std_base:6, dessin_std_m2:0.1, dessin_det_base:8, dessin_det_m2:0.2, flocage:6, gravier:6.5, delai_fab:'4 à 6 semaines' };
+        const anciens = { dessin_brut_base:4, dessin_std_base:6, dessin_std_m2:0.1, dessin_det_base:8, dessin_det_m2:0.2, flocage:6, gravier:6.5, delai_fab:'4 à 6 semaines', cloche_forfait:400, cloche_tranche:100, cadre_forfait:400, cadre_tranche:100 };
         const neufs = defaultParams();
         Object.keys(anciens).forEach(k => { if (saved.params[k] === anciens[k] || saved.params[k] === undefined) saved.params[k] = neufs[k]; });
         state.params = majParams(Object.assign(defaultParams(), saved.params));
