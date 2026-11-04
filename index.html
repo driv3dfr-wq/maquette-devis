@@ -625,7 +625,7 @@
       <div class="lib-local-section" id="bordPistes">
         <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
         <div class="piste-rapide"><input id="pisteRapide" placeholder="Ajout rapide : un nom, un e-mail ou un téléphone (ex. Jean Dupont jean@domaine.fr 06 12 34 56 78)" autocomplete="off"><button class="btn primary" id="btnPisteRapide">＋ Ajouter</button></div>
-        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
+        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPistePhoto">📷 Nouvelle piste depuis une capture</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
         <details class="memo-box" id="memoBox"><summary>📌 Mémo rendez-vous : à relire avant chaque RDV</summary><div id="memoContenu"></div></details>
         <details class="strategie-box" id="strategieBox"><summary>📝 Stratégie de prospection</summary><textarea id="strategieTxt" rows="8" placeholder="Constat, cibles prioritaires, méthode, budget…"></textarea><div class="hint" style="font-size:12px;">Enregistré automatiquement.</div></details>
         <div id="pistesContainer"></div>
@@ -3881,7 +3881,7 @@ document.addEventListener('wheel', function(e){
   let catPrefill = null;
   const OCR_LIB = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   let ocrWorkerP = null;
-  function ocrInfo(t){ const el = document.getElementById('catOcrInfo'); if (el) { el.textContent = t || ''; el.style.display = t ? 'block' : 'none'; } }
+  function ocrInfo(t){ ['catOcrInfo','pf_ocr'].forEach(id => { const el = document.getElementById(id); if (el) { el.textContent = t || ''; el.style.display = t ? 'block' : 'none'; } }); }
   function chargerScript(src){ return new Promise((ok, ko) => { if (window.Tesseract) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('Bibliothèque de lecture introuvable (réseau ?)')); document.head.appendChild(s); }); }
   async function ocrWorker(){
     if (!ocrWorkerP) ocrWorkerP = (async () => {
@@ -3903,6 +3903,11 @@ document.addEventListener('wheel', function(e){
       const k = Math.min(3, Math.max(1, 1600 / Math.max(img.width, img.height)));
       const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.3)'; g.drawImage(img, 0, 0, c.width, c.height);
+      // capture en mode sombre (texte clair sur fond noir) : on inverse les couleurs, la lecture est bien meilleure
+      try { const px = g.getImageData(0, 0, c.width, c.height).data; let som = 0, n = 0;
+        for (let i = 0; i < px.length; i += 4 * 97) { som += px[i]; n++; }
+        if (n && som / n < 110) { g.globalCompositeOperation = 'difference'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.globalCompositeOperation = 'source-over'; }
+      } catch(e){}
       return c;
     } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
   }
@@ -3984,6 +3989,15 @@ document.addEventListener('wheel', function(e){
     const tot = /(?:total|a payer|à payer|net\s*a?\s*payer|montant|cb|carte)[^\d\n]{0,20}(\d{1,5})[,.](\d{2})/i.exec(txt);
     if (tot) r.total = nb(tot[1] + '.' + tot[2]);
     return r;
+  }
+  function choisirPhotoTexte(cb){
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try { cb(await lirePhoto(f)); }
+      catch (e) { ocrInfo(''); alert('Lecture impossible : ' + e.message); }
+    });
+    inp.click();
   }
   function choisirPhoto(cb){
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
@@ -4135,6 +4149,8 @@ document.addEventListener('wheel', function(e){
   function pisteFormHTML(p){
     const e = escapeHtml, v = x => e(String(x ?? ''));
     return `<div class="cat-art-form" id="pisteForm">
+      <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="btn" id="pf_photo" type="button">📷 Remplir depuis une capture ou une photo</button><span class="hint" style="font-size:12px;margin:0;">Adresse, téléphone, e-mail, site, horaires : je remplis les cases vides et je recopie le reste dans les notes.</span></div>
+      <div class="hint" id="pf_ocr" style="grid-column:1/-1;display:none;font-size:12px;margin:0;"></div>
       <div style="grid-column:1/-1;"><label>Piste (entreprise, personne, idée)</label><input id="pf_nom" value="${v(p.nom)}" placeholder="ex. Domaine X, promoteur Y"></div>
       <div><label>Type</label><select id="pf_type">${TYPES_PISTE.map(t => `<option${t === p.type ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
       <div><label>Importance</label><select id="pf_imp">${[[0,'Non classée'],[1,'★ Faible'],[2,'★★ Moyenne'],[3,'★★★ Prioritaire']].map(o => `<option value="${o[0]}"${o[0] === (+p.importance || 0) ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></div>
@@ -4181,6 +4197,7 @@ document.addEventListener('wheel', function(e){
     if (f) {
       const g = id => document.getElementById(id).value.trim();
       document.getElementById('pf_annuler').addEventListener('click', () => { pisteEdit = null; renderPistes(); });
+      document.getElementById('pf_photo').addEventListener('click', () => pisteDepuisPhoto());
       const sup = document.getElementById('pf_suppr');
       if (sup) sup.addEventListener('click', () => pisteSupprimer(pisteEdit));
       document.getElementById('pf_ok').addEventListener('click', () => {
@@ -4218,6 +4235,49 @@ document.addEventListener('wheel', function(e){
     else return null;
     if (p.nom === p.contact && /\b(sarl|sas|domaine|champagne|château|chateau|mairie|immobilier|promotion|architecte|cabinet|atelier|maison|office)\b/i.test(p.nom)) delete p.contact;
     return p;
+  }
+  // Lecture d'une capture (fiche Google, page web, carte de visite) pour une piste
+  function analyserPiste(txt){
+    const plat = txt.replace(/\n/g, ' ').replace(/[•●▪·]/g, ' • ').replace(/\s+/g, ' ');
+    const r = {};
+    const m = plat.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/); if (m) r.mail = m[0].toLowerCase().replace(/\.$/, '');
+    const t = plat.match(/(\+33\s?\(?0?\)?\s?|0)[1-9]([\s.\-]?\d{2}){4}/); if (t) r.tel = t[0].trim().replace(/[.\-]/g, ' ').replace(/\s+/g, ' ');
+    const w = plat.match(/\b(https?:\/\/[^\s,]+|www\.[^\s,]+)/i); if (w) r.site = w[0].replace(/[.)]+$/, '');
+    // Adresse : « 2 mail des Charmilles, 10000 Troyes »
+    const STOP = /\s*(?:•|T[ée]l[ée]phone|T[ée]l\b|E-?mail|Courriel|Horaires|Site|Ouvert|Fermé|L'accueil|$)/i;
+    const cp = plat.match(/(?:Adresse\s*:?\s*)?((?:\d{1,4}\s?(?:bis|ter)?,?\s+)?[^•:]{0,60}?),?\s*(\d{5})\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ'\-]+(?:[\s\-](?:sur|sous|en|le|la|les|de|du|des|aux|[A-ZÀ-Ý][A-Za-zÀ-ÿ'\-]+))*)/);
+    if (cp) {
+      let rue = (cp[1] || '').replace(/^.*Adresse\s*:?\s*/i, '').trim();
+      if (!/\d/.test(rue) && !/\b(rue|avenue|av\.|bd|boulevard|place|chemin|route|mail|allée|impasse|quai|cours|faubourg|zone|za|zi)\b/i.test(rue)) rue = '';
+      r.ville = cp[3].replace(STOP, '').trim();
+      r.adresse = (rue ? rue.replace(/,$/, '') + ', ' : '') + cp[2] + ' ' + r.ville;
+    }
+    const h = plat.match(/Horaires?\s*:?\s*(.{5,140}?)(?=\s*(?:•|L'accueil|Pour |T[ée]l|E-?mail|Adresse|$))/i); if (h) r.horaires = h[1].replace(/[\s.@©®°]+$/, '').trim();
+    if (/sur rendez-vous|uniquement sur rdv/i.test(plat)) r.rdv = 'Accueil uniquement sur rendez-vous';
+    // Nom : sigle entre parenthèses ou « l'Unité / l'Office / la Mairie… »
+    const nm = plat.match(/((?:Unit[ée]|Office|Mairie|Conseil|Chambre|Maison|Mus[ée]e|Agence|Cabinet|Atelier|Soci[ée]t[ée]|Champagne|Domaine|Ch[aâ]teau|Direction|Service)[^.,:•]{3,90}?\([A-Z]{2,8}\)[^.,:•]{0,20}?)(?=[.,:•]|\s(?:via|est|n'est|au|à)\b)/);
+    if (nm) r.nom = nm[1].replace(/\s+/g, ' ').trim();
+    return r;
+  }
+  function pisteDepuisPhoto(){
+    choisirPhotoTexte(txt => {
+      const r = analyserPiste(txt);
+      const champ = (id, v) => { const el = document.getElementById(id); if (!el || !v) return false; if (!el.value.trim()) { el.value = v; return true; } return el.value.trim().toLowerCase() === v.toLowerCase(); };
+      const reste = [];
+      if (r.nom && !champ('pf_nom', r.nom)) reste.push('Nom lu : ' + r.nom);
+      if (r.adresse && !champ('pf_contact', r.adresse)) reste.push('Adresse : ' + r.adresse);
+      if (r.tel && !champ('pf_tel', r.tel)) reste.push('Tél. : ' + r.tel);
+      if (r.mail && !champ('pf_mail', r.mail)) reste.push('E-mail : ' + r.mail);
+      if (r.site && !champ('pf_site', r.site)) reste.push('Site : ' + r.site);
+      if (r.ville) champ('pf_ville', r.ville);
+      if (r.horaires) reste.push('Horaires : ' + r.horaires);
+      if (r.rdv) reste.push(r.rdv);
+      const n = document.getElementById('pf_notes');
+      if (reste.length && n) n.value = (n.value.trim() ? n.value.trim() + '\n' : '') + 'Lu sur une capture le ' + new Date().toLocaleDateString('fr-FR') + ' :\n' + reste.join('\n');
+      const trouve = ['nom','adresse','tel','mail','site','horaires'].filter(k => r[k]).length;
+      if (!trouve) alert('Je n\'ai pas trouvé d\'adresse, de téléphone ou d\'e-mail lisibles. Essaie une capture plus nette, ou remplis la fiche à la main.');
+      else ocrInfo('✓ Capture lue : vérifie les cases puis touche « Enregistrer ».');
+    });
   }
   function pisteAjoutRapide(){
     const inp = document.getElementById('pisteRapide'); const p = pisteDepuisTexte(inp.value);
@@ -4284,6 +4344,7 @@ document.addEventListener('wheel', function(e){
   document.getElementById('btnBordBack').addEventListener('click', () => toggleBord(false));
   document.getElementById('btnPisteAdd').addEventListener('click', () => { bordOnglet('pistes'); pisteEdit = 'new'; renderPistes(); });
   document.getElementById('btnPisteRapide').addEventListener('click', pisteAjoutRapide);
+  document.getElementById('btnPistePhoto').addEventListener('click', () => { bordOnglet('pistes'); pisteEdit = 'new'; renderPistes(); pisteDepuisPhoto(); });
   document.getElementById('pisteRapide').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pisteAjoutRapide(); } });
   document.getElementById('btnPisteSync').addEventListener('click', async () => {
     pisteSyncInfo('Synchronisation…'); const ok = await catSynchroMaintenant(); renderPistes(); pisteSyncInfo(ok === false && !(getDriveUrl && getDriveUrl()) ? '' : undefined);
