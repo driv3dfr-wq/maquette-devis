@@ -1,6 +1,6 @@
 // Devis Maquette : garde une copie de l'appli pour l'ouvrir sans réseau.
 // Réseau d'abord (les mises à jour publiées arrivent tout de suite), copie locale si pas de réseau.
-const CACHE = "devis-maquette-v19";
+const CACHE = "devis-maquette-v20";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "./logo-driv3d.png"];
 // Bibliothèques et polices externes utilisées par l'appli (mises en cache aussi).
 const EXTERNES = ["cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];

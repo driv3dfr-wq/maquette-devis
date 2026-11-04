@@ -473,10 +473,10 @@
 .choix-ctrl label{display:flex;gap:6px;align-items:center;cursor:pointer;}
 .choix{margin:16px 0 8px;}
 .choix h4{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px;}
-.annexe-row{display:grid;grid-template-columns:2fr 1fr 1fr 0.8fr auto;gap:6px;align-items:center;margin-bottom:6px;}
-.annexe-row input{width:100%;min-width:0;}
+.annexe-row{display:grid;grid-template-columns:2fr 1fr 1fr 0.7fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px;}
+.annexe-row input,.annexe-row select{width:100%;min-width:0;}
 .annexe-row button{padding:6px 10px;}
-@media (max-width:520px){.annexe-row{grid-template-columns:1fr 1fr 1fr auto;}.annexe-row .an-nom{grid-column:1/-1;}}
+@media (max-width:520px){.annexe-row{grid-template-columns:1fr 1fr 0.7fr 1fr auto;}.annexe-row .an-nom{grid-column:1/-1;}}
 .choix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;}
 @media (min-width:600px){.choix-grid.six{grid-template-columns:repeat(3,1fr);}}
 .choix-card{border:1px solid #d9d4c8;border-radius:8px;padding:12px;background:#fff;}
@@ -1154,7 +1154,7 @@
       const annexes = choix.filter(b => b !== b0 && b.aire >= 10 && (!ringP.length || ringP.some(r => dedans(b.c, r)))).slice(0, 30).map((b, i) => {
         const r = rectangleMin(b.pts);
         const e = parseInt(b.pr.nombre_d_etages) || (b.pr.hauteur ? Math.max(1, Math.round(parseFloat(b.pr.hauteur) / 3)) : 1);
-        return { nom: (b.pr.usage_1 && b.pr.usage_1 !== 'Indifférencié' ? b.pr.usage_1 : 'Bâtiment') + ' ' + (i + 2), longueur: r.l.toFixed(1), largeur: r.w.toFixed(1), etages: String(e) };
+        return { nom: (b.pr.usage_1 && b.pr.usage_1 !== 'Indifférencié' ? b.pr.usage_1 : 'Bâtiment') + ' ' + (i + 2), longueur: r.l.toFixed(1), largeur: r.w.toFixed(1), etages: String(e), niveau: 'brut' };
       });
       if (annexes.length) lignes.push(`${annexes.length} bâtiment(s) annexe(s) sur la parcelle : ${Math.round(annexes.reduce((a, x) => a + x.longueur * x.largeur, 0))} m² d'emprise`);
       info.innerHTML = lignes.map(escapeHtml).join('<br>');
@@ -1315,22 +1315,27 @@
     const A = (state.dimensions && state.dimensions.annexes) || [];
     return A.reduce((t, a) => {
       const l = parseFloat(a.longueur) || 0, w = parseFloat(a.largeur) || 0, e = Math.max(1, parseInt(a.etages) || 1);
-      if (l > 0 && w > 0){ t.emprise += l * w; t.plancher += l * w * e; t.n++; }
+      if (l > 0 && w > 0){
+        t.emprise += l * w; t.plancher += l * w * e; t.n++;
+        const n = ['brut','standard','detaille'].includes(a.niveau) ? a.niveau : 'brut';
+        t.parNiveau[n] = (t.parNiveau[n] || 0) + l * w * e;
+      }
       return t;
-    }, { emprise:0, plancher:0, n:0 });
+    }, { emprise:0, plancher:0, n:0, parNiveau:{} });
   }
   function renderAnnexes(){
     const box = document.getElementById('annexesList'); if (!box) return;
     if (!state.dimensions.annexes) state.dimensions.annexes = [];
     const A = state.dimensions.annexes;
-    box.innerHTML = A.length ? '<div class="annexe-row" style="font-size:12px;color:var(--ink-soft);margin-bottom:2px;"><span class="an-nom">Nom</span><span>Longueur (m)</span><span>Largeur (m)</span><span>Étages</span><span style="width:34px"></span></div>' + A.map((a, i) => `<div class="annexe-row" data-i="${i}">
+    box.innerHTML = A.length ? '<div class="annexe-row" style="font-size:12px;color:var(--ink-soft);margin-bottom:2px;"><span class="an-nom">Nom</span><span>Longueur (m)</span><span>Largeur (m)</span><span>Étages</span><span>Niveau</span><span style="width:34px"></span></div>' + A.map((a, i) => `<div class="annexe-row" data-i="${i}">
         <input class="an-nom" data-k="nom" placeholder="Nom (ex. chai)" value="${escapeHtml(a.nom || '')}">
         <input type="number" data-k="longueur" min="0" step="0.1" placeholder="Long. m" value="${a.longueur || ''}">
         <input type="number" data-k="largeur" min="0" step="0.1" placeholder="Larg. m" value="${a.largeur || ''}">
         <input type="number" data-k="etages" min="1" step="1" placeholder="Étages" value="${a.etages || 1}">
+        <select data-k="niveau">${[['brut','Brut'],['standard','Standard'],['detaille','Détaillé']].map(([v,t]) => `<option value="${v}"${(a.niveau || 'brut') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
         <button type="button" class="btn" data-del="${i}" title="Retirer">✕</button></div>`).join('')
       : '<p style="font-size:13px;color:var(--ink-soft);margin:0;">Aucun. Le bouton adresse les ajoute s\'il en trouve sur la parcelle.</p>';
-    box.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+    box.querySelectorAll('input,select').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => {
       A[+inp.closest('.annexe-row').dataset.i][inp.dataset.k] = inp.value; updateSurfaceDisplay();
     }));
     box.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { A.splice(+b.dataset.del, 1); renderAnnexes(); updateSurfaceDisplay(); }));
@@ -1514,7 +1519,7 @@
 
   document.getElementById('btnAddAnnexe').addEventListener('click', () => {
     if (!state.dimensions.annexes) state.dimensions.annexes = [];
-    state.dimensions.annexes.push({ nom:'', longueur:'', largeur:'', etages:'1' });
+    state.dimensions.annexes.push({ nom:'', longueur:'', largeur:'', etages:'1', niveau:'brut' });
     renderAnnexes();
   });
 
@@ -1610,7 +1615,13 @@
     } else if (state.projet.plans2d === 'papier'){
       dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher * fEch) });
     }
-    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancher.toFixed(0)} m² de plancher${ANN.n ? `, dont ${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''} annexe${ANN.n > 1 ? 's' : ''}` : ''})`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
+    const plancherPrinc = longueur * largeur * nbEtages;
+    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancherPrinc) * fEch) });
+    if (ANN.n){
+      const cle = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' };
+      const hAnn = Object.entries(ANN.parNiveau).reduce((h, [n, m2]) => h + p[cle[n] + '_m2'] * m2, 0);
+      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''}, ${ANN.plancher.toFixed(0)} m² de plancher)`, heures: arr1(hAnn * fEch) });
+    }
 
     // --- Impression 3D (temps machine + filament) ---
     const surfImpr  = ((longueur/ev*100) * (largeur/ev*100) * nbEtages) + ANN.plancher / (ev*ev) * 10000;   // cm² de maquette à imprimer (emprise × étages)
@@ -1646,7 +1657,7 @@
     if (o.jardin_amenage){
       assemblage.push({ label:'Jardin : tracé, scotch, colle, flocage, gravier', heures: arr1(p.jardin_base_h + p.jardin_par_cm2 * SjarCm2Maq) });
     }
-    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: p.elec_int_montage_base + p.elec_int_montage_50 * tranche(SbatReel,50) });
+    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: p.elec_int_montage_base + p.elec_int_montage_50 * tranche(longueur * largeur,50) });
     if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: p.elec_ext_montage_base + p.elec_ext_montage_50 * tranche(SbatReel,50) });
     if (o.connectee) assemblage.push({ label:'Montage et essais du module connecté', heures: p.connectee_h_montage });
 
@@ -1660,7 +1671,7 @@
 
     // --- Forfaits directs ---
     forfaits.push({ label:`Impression 3D — ${hImpr} h machine, dont ${hPieds} h pour ${nbPieds} pieds${estim ? ' (estimation)' : ''}`, cost: hImpr * p.machine_h });
-    if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(SbatReel,50)) });
+    if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(longueur * largeur,50)) });
     // Cloche/cadre : seuil en surface MAQUETTE (250 cm² = 0,025 m² — plus léchelle est grande, plus cest cher)
     const trancheMaquetteCm2 = Math.floor((Sbase * 10000) / 250);
     if (o.cloche_plexi) forfaits.push({ label:'Cloche de protection plexi', cost: p.cloche_forfait + p.cloche_tranche * trancheMaquetteCm2 });
