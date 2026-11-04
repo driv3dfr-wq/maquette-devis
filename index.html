@@ -3896,6 +3896,31 @@ document.addEventListener('wheel', function(e){
     return ocrWorkerP;
   }
   // Agrandit et passe en gris les petites images (captures, étiquettes floues) pour aider la lecture
+  // 2e passage : texte clair sur fond gris ou coloré. On isole les pixels plus clairs que leur voisinage (seuil local).
+  async function preparerImageClair(file){
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+      const k = Math.min(3, Math.max(1, 1600 / Math.max(img.width, img.height)));
+      const W = Math.round(img.width * k), H = Math.round(img.height * k);
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d'); g.filter = 'grayscale(1)'; g.drawImage(img, 0, 0, W, H);
+      const id = g.getImageData(0, 0, W, H), px = id.data;
+      // image intégrale pour la moyenne locale (fenêtre ~ 1/40 de la largeur)
+      const lum = new Float64Array(W * H); for (let i = 0; i < W * H; i++) lum[i] = px[i * 4];
+      const S = new Float64Array((W + 1) * (H + 1));
+      for (let y = 0; y < H; y++) { let r = 0; for (let x = 0; x < W; x++) { r += lum[y * W + x]; S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + r; } }
+      const R = Math.max(8, Math.round(W / 40));
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const x0 = Math.max(0, x - R), x1 = Math.min(W, x + R + 1), y0 = Math.max(0, y - R), y1 = Math.min(H, y + R + 1);
+        const m = (S[y1 * (W + 1) + x1] - S[y0 * (W + 1) + x1] - S[y1 * (W + 1) + x0] + S[y0 * (W + 1) + x0]) / ((x1 - x0) * (y1 - y0));
+        const d = Math.abs(lum[y * W + x] - m) > 18 ? 0 : 255;   // tout ce qui tranche sur le fond devient noir
+        px[(y * W + x) * 4] = px[(y * W + x) * 4 + 1] = px[(y * W + x) * 4 + 2] = d;
+      }
+      g.putImageData(id, 0, 0);
+      return c;
+    } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
+  }
   async function preparerImage(file){
     const url = URL.createObjectURL(file);
     try {
@@ -3911,12 +3936,18 @@ document.addEventListener('wheel', function(e){
       return c;
     } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
   }
-  async function lirePhoto(file){
+  async function lirePhoto(file, deuxPassages){
     ocrInfo('Préparation de la lecture…');
     const w = await ocrWorker();
     const { data } = await w.recognize(await preparerImage(file));
+    let txt = (data && data.text || '');
+    // Peu de chiffres lus (texte clair sur fond gris, couleurs pâles) : 2e lecture avec seuil local, et on garde les deux textes
+    if (deuxPassages && !/\d{5}|(\d{2}[\s.]?){5}/.test(txt)) {
+      ocrInfo('Deuxième lecture (texte clair)…');
+      try { const r2 = await w.recognize(await preparerImageClair(file)); txt += '\n' + (r2.data && r2.data.text || ''); } catch(e){}
+    }
     ocrInfo('');
-    return (data && data.text || '').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+    return txt.replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
   }
   const MAGASINS = ['Leroy Merlin','Castorama','Brico Dépôt','Bricomarché','Bricorama','Mr Bricolage','Weldom','Point P','Gedimat','Amazon','ManoMano','Action','Cultura','Rougier & Plé','Lidl','Aliexpress','Temu','Cdiscount','Boulanger','Darty','Ikea','Hornbach','Decathlon','Gifi','La Foir\'Fouille','Cultura','Géant des Beaux-Arts','Le Géant des Beaux-Arts','Noz'];
   const MOTS_CAT = [
@@ -3994,7 +4025,7 @@ document.addEventListener('wheel', function(e){
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.addEventListener('change', async () => {
       const f = inp.files && inp.files[0]; if (!f) return;
-      try { cb(await lirePhoto(f)); }
+      try { cb(await lirePhoto(f, true)); }
       catch (e) { ocrInfo(''); alert('Lecture impossible : ' + e.message); }
     });
     inp.click();
@@ -4243,20 +4274,41 @@ document.addEventListener('wheel', function(e){
     const m = plat.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/); if (m) r.mail = m[0].toLowerCase().replace(/\.$/, '');
     const t = plat.match(/(\+33\s?\(?0?\)?\s?|0)[1-9]([\s.\-]?\d{2}){4}/); if (t) r.tel = t[0].trim().replace(/[.\-]/g, ' ').replace(/\s+/g, ' ');
     const w = plat.match(/\b(https?:\/\/[^\s,]+|www\.[^\s,]+)/i); if (w) r.site = w[0].replace(/[.)]+$/, '');
-    // Adresse : « 2 mail des Charmilles, 10000 Troyes »
-    const STOP = /\s*(?:•|T[ée]l[ée]phone|T[ée]l\b|E-?mail|Courriel|Horaires|Site|Ouvert|Fermé|L'accueil|$)/i;
-    const cp = plat.match(/(?:Adresse\s*:?\s*)?((?:\d{1,4}\s?(?:bis|ter)?,?\s+)?[^•:]{0,60}?),?\s*(\d{5})\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ'\-]+(?:[\s\-](?:sur|sous|en|le|la|les|de|du|des|aux|[A-ZÀ-Ý][A-Za-zÀ-ÿ'\-]+))*)/);
-    if (cp) {
-      let rue = (cp[1] || '').replace(/^.*Adresse\s*:?\s*/i, '').trim();
-      if (!/\d/.test(rue) && !/\b(rue|avenue|av\.|bd|boulevard|place|chemin|route|mail|allée|impasse|quai|cours|faubourg|zone|za|zi)\b/i.test(rue)) rue = '';
-      r.ville = cp[3].replace(STOP, '').trim();
-      r.adresse = (rue ? rue.replace(/,$/, '') + ', ' : '') + cp[2] + ' ' + r.ville;
+    // Adresse, lue ligne par ligne : « 1, rue du Commandant Hugueny » puis « 52905 CHAUMONT CEDEX 9 »
+    const lignes = txt.split('\n').map(l => l.replace(/^[\s•●▪e]{0,3}(?=[A-ZÀ-Ý0-9])/, '').replace(/^(Adresse|Si[eè]ge)\s*:?\s*/i, '').trim()).filter(Boolean)
+      .reduce((acc, l) => { const d = acc[acc.length - 1]; if (d && /\b\d{5}$/.test(d) && /^[A-Za-zÀ-ÿ]/.test(l)) acc[acc.length - 1] = d + ' ' + l; else acc.push(l); return acc; }, []);
+    const RUE = /\b(rue|avenue|av\.|bd|boulevard|place|chemin|route|mail|all[ée]e|impasse|quai|cours|faubourg|zone|za|zi|lieu-dit|hameau|rond-point|square|parc|r[ée]sidence|bp|cs)\b/i;
+    const villeJolie = v => v.replace(/\s+CEDEX.*$/i, '').replace(/[.,;]+$/, '').trim().toLowerCase().replace(/(^|[\s\-'])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Sur|Sous|En|Le|La|Les|De|Du|Des|Aux)\b(?=[\s\-])/g, (m, w, o) => o ? w.toLowerCase() : w);
+    for (let k = 0; k < lignes.length; k++) {
+      const m2 = lignes[k].match(/^(.*?)(?:,\s*)?\b(\d{5})\s+([A-Za-zÀ-ÿ'][A-Za-zÀ-ÿ'\- ]{1,40}?(?:\s+CEDEX(?:\s*\d+)?)?)(?=$|[\s,.;•(])/i);
+      if (!m2 || /^0\d{4}$/.test(m2[2]) && /t[ée]l/i.test(lignes[k])) continue;
+      let rue = m2[1].replace(/^.*?(?=\d{1,4}\s?(bis|ter)?,?\s)/i, '').trim();
+      if (!(/^\d/.test(rue) || RUE.test(rue)) && k > 0 && (/^\d{1,4}\b/.test(lignes[k - 1]) || RUE.test(lignes[k - 1]))) rue = lignes[k - 1].replace(/^.*?(?=\d{1,4}\s?(bis|ter)?,?\s)/i, '');
+      if (!(/^\d/.test(rue) || RUE.test(rue))) rue = '';
+      const villeBrute = m2[3].replace(/\s*\b(T[ée]l|E-?mail|Horaires)\b.*$/i, '').trim();
+      r.ville = villeJolie(villeBrute);
+      r.adresse = (rue ? rue.replace(/[,;]\s*$/, '') + ', ' : '') + m2[2] + ' ' + (/[a-z]/.test(villeBrute) ? villeBrute : r.ville + (/CEDEX/i.test(villeBrute) ? ' ' + villeBrute.replace(/^.*?(CEDEX.*)$/i, '$1') : ''));
+      break;
     }
+    // Personnes : « Directeur(trice) : Carine DUPLESSIS », « Gérant : … »
+    r.personnes = lignes.map(l => l.match(/^((?:Pr[ée]sident|Directeur|Directrice|G[ée]rant|Responsable|Contact|Charg[ée]|Commercial|Associ[ée]|Fondat|Propri[ée]taire|Ma[iî]re|Architecte)[^:]{0,20})\s*:\s*([A-ZÀ-Ý][\wÀ-ÿ'\- ]{2,40})/)).filter(Boolean).map(m => m[2].trim() + ' (' + m[1].trim() + ')');
     const h = plat.match(/Horaires?\s*:?\s*(.{5,140}?)(?=\s*(?:•|L'accueil|Pour |T[ée]l|E-?mail|Adresse|$))/i); if (h) r.horaires = h[1].replace(/[\s.@©®°]+$/, '').trim();
     if (/sur rendez-vous|uniquement sur rdv/i.test(plat)) r.rdv = 'Accueil uniquement sur rendez-vous';
     // Nom : sigle entre parenthèses ou « l'Unité / l'Office / la Mairie… »
     const nm = plat.match(/((?:Unit[ée]|Office|Mairie|Conseil|Chambre|Maison|Mus[ée]e|Agence|Cabinet|Atelier|Soci[ée]t[ée]|Champagne|Domaine|Ch[aâ]teau|Direction|Service)[^.,:•]{3,90}?\([A-Z]{2,8}\)[^.,:•]{0,20}?)(?=[.,:•]|\s(?:via|est|n'est|au|à)\b)/);
     if (nm) r.nom = nm[1].replace(/\s+/g, ' ').trim();
+    if (!r.nom) {
+      const lg = txt.split('\n').map(l => l.trim());
+      for (let k = 0; k < lg.length; k++) {
+        let l = lg[k]; const lettres = l.replace(/[^A-Za-zÀ-ÿ]/g, '');
+        if (lettres.length < 4 || /\d|@|www|https?:|\.(fr|com)\b/i.test(l) || lettres.replace(/[^A-ZÀ-Ý]/g, '').length < lettres.length * 0.8) continue;
+        if (/-$/.test(l) && lg[k + 1] && /^[A-ZÀ-Ý]/.test(lg[k + 1])) l += lg[k + 1];
+        else if (lg[k + 1] && /^[A-ZÀ-Ý\- ]{3,}$/.test(lg[k + 1]) && l.split(' ').length < 4) l += ' ' + lg[k + 1];
+        const PETITS = ['DE','DU','DES','LA','LE','LES','ET','EN','SUR','SOUS','AUX','À','D\'','L\''];
+        r.nom = l.split(' ').map(w => PETITS.includes(w) ? w.toLowerCase() : (w.length <= 4 && !/-/.test(w)) ? w : w.toLowerCase().replace(/(^|[-'])([a-zà-ÿ])/g, (m, a2, b) => a2 + b.toUpperCase())).join(' ');
+        break;
+      }
+    }
     return r;
   }
   function pisteDepuisPhoto(){
@@ -4265,7 +4317,9 @@ document.addEventListener('wheel', function(e){
       const champ = (id, v) => { const el = document.getElementById(id); if (!el || !v) return false; if (!el.value.trim()) { el.value = v; return true; } return el.value.trim().toLowerCase() === v.toLowerCase(); };
       const reste = [];
       if (r.nom && !champ('pf_nom', r.nom)) reste.push('Nom lu : ' + r.nom);
-      if (r.adresse && !champ('pf_contact', r.adresse)) reste.push('Adresse : ' + r.adresse);
+      const contactTxt = [(r.personnes || [])[0], r.adresse].filter(Boolean).join(' · ');
+      if (contactTxt && !champ('pf_contact', contactTxt)) { if (r.adresse) reste.push('Adresse : ' + r.adresse); }
+      (r.personnes || []).forEach(x => reste.push('Personne : ' + x));
       if (r.tel && !champ('pf_tel', r.tel)) reste.push('Tél. : ' + r.tel);
       if (r.mail && !champ('pf_mail', r.mail)) reste.push('E-mail : ' + r.mail);
       if (r.site && !champ('pf_site', r.site)) reste.push('Site : ' + r.site);
