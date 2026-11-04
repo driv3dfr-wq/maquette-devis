@@ -694,6 +694,8 @@
             <option value="brut">Brut — volumes, façades, ouvertures</option>
             <option value="standard">Standard — + cloisons intérieures</option>
             <option value="detaille">Détaillé — + cuisine, meubles, textures</option>
+            <option value="paysage">Paysagé — Détaillé + murs ouvragés, jardin, mobilier, éclairages</option>
+            <option value="complet">Tout compris — Paysagé + cloche plexiglas et cadre métal</option>
           </select>
           <span class="unit">Les heures de dessin se calculent sur la surface de plancher (longueur × largeur × étages).</span>
         </div>
@@ -1457,6 +1459,18 @@
     updateSurfaceDisplay();
   }
 
+  // Paysagé et Tout compris se dessinent au niveau Détaillé
+  function nivDessin(n){ return (n === 'paysage' || n === 'complet') ? 'detaille' : (n || 'standard'); }
+  document.getElementById('p_niveau').addEventListener('change', e => {
+    const v = e.target.value;
+    if (v !== 'paysage' && v !== 'complet') return;
+    readFormIntoState();
+    ['murs_ouvrages','eclairage_interieur','eclairage_exterieur','mobilier'].forEach(k => state.options[k] = true);
+    if (parseFloat(state.dimensions.jardin) > 0) state.options.jardin_amenage = true;
+    if (v === 'complet'){ state.options.cloche_plexi = true; state.options.cadre_metal = true; }
+    renderOptions();
+  });
+
   // ---------- Renderers ----------
   function renderOptions(){
     const grid = document.getElementById('optionGrid');
@@ -1539,7 +1553,7 @@
     // --- Dessin (niveau de détail × surface de plancher réelle) ---
     const nbEtages   = Math.max(1, parseInt(state.projet.etages) || 1);
     const plancher   = SbatReel * nbEtages;
-    const niv        = state.projet.niveau || 'standard';
+    const niv        = nivDessin(state.projet.niveau);
     const fEch = Math.sqrt(50 / (ev || 50));   // plus l'échelle est grande (1:10), plus il y a de détails à dessiner
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
@@ -2012,7 +2026,7 @@
         return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.expo ? 'Toutes options, cloche et cadre' : f.toutes ? 'Jardin, mobilier, éclairages' : 'Maquette seule' };
       });
       // Cinquième carte : le devis tel qu'il est (niveau + options cochées), rangée selon son prix
-      const fCur = FORMULES.find(f => !f.toutes && f.niveau === (pr.niveau || 'standard'));
+      const fCur = FORMULES.find(f => f.cle === ({ paysage:'complet', complet:'total' }[pr.niveau] || pr.niveau || 'standard'));
       const avecOpt = Object.values(state.options || {}).some(v => v) || (state.materiaux || []).some(m => parseFloat(m.quantite) > 0);
       const dCur = simuler(() => {});
       const votre = { nom: 'Votre devis', desc: (fCur ? fCur.nom : 'Formule choisie') + (avecOpt ? ' avec les options choisies.' : ', sans option.'),
@@ -2906,7 +2920,7 @@
 
   // ---------- Recalibrage des formules à partir des chronos ----------
   function reglesRecal(){
-    const n = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' }[state.projet.niveau || 'standard'] || 'dessin_std';
+    const n = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' }[nivDessin(state.projet.niveau)] || 'dessin_std';
     return [
       { cat:'dessin',     re:/^Modélisation 3D/,             cles:[n+'_base', n+'_m2'], nom:'Modélisation 3D' },
       { cat:'dessin',     re:/^Plans 2D/,                    cles:['plans_papier_m2'], nom:'Plans 2D' },
