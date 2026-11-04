@@ -490,6 +490,16 @@
 .fb-onglets{display:flex;gap:6px;}
 .fb-ac{font-size:13px;color:var(--ink-soft);display:flex;gap:6px;align-items:center;}
 .fb-ac input{width:120px;padding:4px 6px;}
+.recal{margin-top:22px;padding-top:14px;border-top:1px dashed #bbb;}
+.recal h4{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 6px;}
+.bord-annee{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.bord-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.bord-tuile{background:#fff;border:1px solid #d9d4c8;border-radius:8px;padding:14px;}
+.bt-lbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);}
+.bt-val{font-size:24px;font-weight:700;color:var(--blue);margin-top:6px;}
+.bt-sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.bord-statuts{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;}
+.bord-statut{border:1.5px solid;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600;background:#fff;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -536,7 +546,9 @@
       <div class="lib-tabs">
         <button class="lib-tab active" data-libtab="local">💾 Cet appareil</button>
         <button class="lib-tab" data-libtab="drive">☁ Google Drive</button>
+        <button class="lib-tab" data-libtab="bord">📊 Tableau de bord</button>
       </div>
+      <div class="lib-local-section" id="libBordSection"><div id="bordContainer"></div></div>
       <div class="lib-local-section active" id="libLocalSection">
         <p class="hint" style="margin-bottom:14px;">Devis sauvegardés localement sur cet appareil.</p>
         <div id="libGrid" class="lib-grid"></div>
@@ -1032,6 +1044,57 @@
     libLoad().forEach(e => { try { if (aRelancer(JSON.parse(e.data).projet)) n++; } catch(err){} });
     const b = document.getElementById('btnLibrary');
     if (b) b.innerHTML = '📁 Mes projets' + (n ? ` <span class="badge-relance">${n} à relancer</span>` : '');
+  }
+
+  // ---------- Tableau de bord ----------
+  let anneeBord = new Date().getFullYear();
+  function renderTableauBord(){
+    const box = document.getElementById('bordContainer'); if (!box) return;
+    const fmt = n => n.toLocaleString('fr-FR', { maximumFractionDigits:0 }) + ' €';
+    const projets = [];
+    const sauve = state;
+    libLoad().forEach(e => {
+      try {
+        const st = Object.assign(freshState(), JSON.parse(e.data));
+        st.params = majParams(Object.assign(defaultParams(), st.params || {}));
+        state = st;
+        const d = computeAndRenderResult(true);
+        const sumH = arr => arr.reduce((a,t) => a + t.heures, 0);
+        const hDevis = sumH(d.dessin) + sumH(d.decoupe) + sumH(d.assemblage) + sumH(d.peinture);
+        const hReel = Object.values(st.timers || {}).reduce((a,t) => a + timerMs(t), 0) / 3600000;
+        const date = st.projet.date_devis || (e.savedAt || '').slice(0, 10);
+        projets.push({ pr: st.projet, total: d.totalHT, hDevis, hReel, an: +String(date).slice(0, 4) || new Date().getFullYear(),
+          m2: (parseFloat(st.dimensions.longueur) || 0) * (parseFloat(st.dimensions.largeur) || 0) * Math.max(1, parseInt(st.projet.etages) || 1) });
+      } catch(err){}
+    });
+    state = sauve;
+    const annees = [...new Set(projets.map(x => x.an))].sort((a,b) => b - a);
+    if (!annees.includes(anneeBord)) anneeBord = annees[0] || new Date().getFullYear();
+    const L = projets.filter(x => x.an === anneeBord);
+    const st = x => x.pr.statut || 'brouillon';
+    const gagnes = L.filter(x => ['accepte','fabrication','livre','paye'].includes(st(x)));
+    const envoyes = L.filter(x => st(x) !== 'brouillon');
+    const ca = gagnes.reduce((a,x) => a + x.total, 0);
+    const encaisse = L.filter(x => st(x) === 'paye').reduce((a,x) => a + x.total, 0);
+    const enAttente = L.filter(x => st(x) === 'envoye').reduce((a,x) => a + x.total, 0);
+    const taux = envoyes.length ? Math.round(gagnes.length / envoyes.length * 100) : null;
+    const m2 = gagnes.reduce((a,x) => a + x.m2, 0);
+    const chrono = L.filter(x => x.hReel > 0);
+    const hD = chrono.reduce((a,x) => a + x.hDevis, 0), hR = chrono.reduce((a,x) => a + x.hReel, 0);
+    const tuile = (lbl, val, sub) => `<div class="bord-tuile"><div class="bt-lbl">${lbl}</div><div class="bt-val">${val}</div>${sub ? `<div class="bt-sub">${sub}</div>` : ''}</div>`;
+    const parStatut = STATUTS.map(s2 => { const n = L.filter(x => st(x) === s2[0]).length; return n ? `<span class="bord-statut" style="border-color:${s2[2]};color:${s2[2]}">${s2[1]} : ${n}</span>` : ''; }).join('');
+    box.innerHTML = `<div class="bord-annee">${annees.map(a => `<button class="btn${a === anneeBord ? ' primary' : ''}" data-an="${a}">${a}</button>`).join('')}</div>
+      <div class="bord-grid">
+        ${tuile('Chiffre d\'affaires signé', fmt(ca), gagnes.length + ' devis signé' + (gagnes.length > 1 ? 's' : ''))}
+        ${tuile('Encaissé', fmt(encaisse), 'projets « Payé »')}
+        ${tuile('En attente de réponse', fmt(enAttente), (n => n + ' devis envoyé' + (n > 1 ? 's' : ''))(envoyes.filter(x => st(x) === 'envoye').length))}
+        ${tuile('Taux de transformation', taux === null ? '—' : taux + ' %', envoyes.length + ' devis envoyé' + (envoyes.length > 1 ? 's' : '') + ' au total')}
+        ${tuile('Prix moyen', gagnes.length ? fmt(ca / gagnes.length) : '—', m2 ? 'soit ' + fmt(ca / m2) + ' / m² de plancher' : '')}
+        ${tuile('Heures estimées / réelles', chrono.length ? hD.toFixed(0) + ' h / ' + hR.toFixed(0) + ' h' : '—', chrono.length ? (hR > hD ? '+' : '') + Math.round((hR / hD - 1) * 100) + ' % sur ' + chrono.length + (chrono.length > 1 ? ' projets chronométrés' : ' projet chronométré') : 'lance les chronos dans l\'onglet Suivi')}
+      </div>
+      <div class="bord-statuts">${parStatut || '<span class="hint">Aucun projet cette année.</span>'}</div>
+      <p class="hint" style="margin-top:12px;">Calculé sur les projets enregistrés sur cet appareil, d'après la date du devis.</p>`;
+    box.querySelectorAll('[data-an]').forEach(b => b.onclick = () => { anneeBord = +b.dataset.an; renderTableauBord(); });
   }
 
   // ---------- Facture ----------
@@ -2692,9 +2755,61 @@
         <tr class="suivi-total"><td>Total main d'œuvre</td><td style="text-align:right;">${fmtH(totDevis)}</td>
           <td style="text-align:right;">${totReel ? fmtChrono(totReel*3600000) : '—'}</td>
           <td style="text-align:center;">${totReel ? (ecT>0?'+':'') + ecT.toFixed(1) + ' h' : ''}</td></tr>
-      </table>`;
+      </table>` + recalibrageHTML(cats);
+    const ba = document.getElementById('btnRecal');
+    if (ba) ba.addEventListener('click', appliquerRecalibrage);
     document.querySelectorAll('#suiviContainer .chrono-btn').forEach(b => b.addEventListener('click', () => chronoToggle(b.dataset.key)));
     document.querySelectorAll('#suiviContainer .chrono').forEach(el => el.addEventListener('click', () => chronoEdit(el.dataset.key)));
+  }
+
+  // ---------- Recalibrage des formules à partir des chronos ----------
+  function reglesRecal(){
+    const n = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' }[state.projet.niveau || 'standard'] || 'dessin_std';
+    return [
+      { cat:'dessin',     re:/^Modélisation 3D/,             cles:[n+'_base', n+'_m2'], nom:'Modélisation 3D' },
+      { cat:'dessin',     re:/^Plans 2D/,                    cles:['plans_papier_m2'], nom:'Plans 2D' },
+      { cat:'decoupe',    re:/^Préparation impression/,      cles:['prep_impr_base','prep_impr_par_h'], nom:'Préparation impression' },
+      { cat:'decoupe',    re:/^Travail du bois/,             cles:['bois_base_h','bois_par_m_h'], nom:'Travail du bois' },
+      { cat:'assemblage', re:/^Assemblage maquette 3D/,      cles:['assemblage_base_h','assemblage_par_cm2'], nom:'Assemblage' },
+      { cat:'assemblage', re:/^Jardin/,                      cles:['jardin_base_h','jardin_par_cm2'], nom:'Jardin' },
+      { cat:'dessin',     re:/^Programmation éclairage connecté/, cles:['connectee_h_dessin'], nom:'Éclairage connecté (programmation)' },
+      { cat:'assemblage', re:/^Montage et essais du module connecté/, cles:['connectee_h_montage'], nom:'Éclairage connecté (montage)' }
+    ];
+  }
+  let propositionsRecal = [];
+  function recalibrageHTML(cats){
+    propositionsRecal = [];
+    const regles = reglesRecal();
+    cats.forEach(c => c.taches.forEach(t => {
+      const r = regles.find(x => x.cat === c.id && x.re.test(t.label)); if (!r || !(t.heures > 0)) return;
+      const ms = timerMs(state.timers[timerKey(c.id, t.label)]); if (!ms) return;
+      const reel = ms / 3600000, ratio = reel / t.heures;
+      if (Math.abs(ratio - 1) < 0.1) return;   // moins de 10 % d'écart : rien à corriger
+      propositionsRecal.push({ nom:r.nom, devise:t.heures, reel, ratio, cles:r.cles.map(k => ({ k, avant:state.params[k], apres: +(state.params[k] * ratio).toPrecision(3) })) });
+    }));
+    if (!propositionsRecal.length) return `<p class="suivi-intro" style="margin-top:18px;">Recalibrage : dès qu'une tâche chronométrée s'écarte de plus de 10 % de l'estimation, je te proposerai ici d'ajuster la formule.</p>`;
+    const lignes = propositionsRecal.map((x, i) => `<tr><td><label><input type="checkbox" class="recal-ck" data-i="${i}" checked> ${escapeHtml(x.nom)}</label></td>
+      <td style="text-align:right;">${x.devise.toFixed(1).replace(".", ",")} h</td><td style="text-align:right;">${x.reel.toFixed(1).replace(".", ",")} h</td>
+      <td style="text-align:right;">${x.ratio > 1 ? '+' : ''}${Math.round((x.ratio - 1) * 100)} %</td></tr>`).join('');
+    return `<div class="recal"><h4>Recalibrer les formules</h4>
+      <p class="suivi-intro">À faire une fois la tâche terminée. Les heures de ces tâches seront ajustées pour tous les prochains devis (les devis déjà enregistrés ne changent pas).</p>
+      <table class="suivi-table"><tr><th>Tâche</th><th style="text-align:right;">Estimé</th><th style="text-align:right;">Réel</th><th style="text-align:right;">Écart</th></tr>${lignes}</table>
+      <button class="btn primary" id="btnRecal" style="margin-top:10px;">Appliquer aux prochains devis</button></div>`;
+  }
+  function appliquerRecalibrage(){
+    const choisis = [...document.querySelectorAll('.recal-ck')].filter(c => c.checked).map(c => propositionsRecal[+c.dataset.i]);
+    if (!choisis.length) return;
+    const resume = choisis.map(x => x.nom + ' : ' + x.cles.map(c => c.avant + ' → ' + c.apres).join(', ')).join('\n');
+    if (!confirm('Ajuster les formules ?\n\n' + resume)) return;
+    // Paramètres de l'atelier (globaux), puis le projet en cours garde ses heures d'origine
+    let glob = defaultParams();
+    try { const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); if (raw.params) glob = majParams(Object.assign(defaultParams(), raw.params)); } catch(e){}
+    choisis.forEach(x => x.cles.forEach(c => { glob[c.k] = +(glob[c.k] * x.ratio).toPrecision(3); }));
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); raw.params = glob;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+    } catch(e){}
+    alert('Formules ajustées. Elles s\'appliqueront aux prochains devis (bouton « Nouveau devis »).');
   }
 
   function chronoSave(){ readFormIntoState(); libAdd(state); updateChronoChip(); }
@@ -2851,7 +2966,9 @@
     document.querySelectorAll('.lib-tab').forEach(b => b.classList.toggle('active', b.dataset.libtab === tab));
     document.getElementById('libLocalSection').classList.toggle('active', tab === 'local');
     document.getElementById('libDriveSection').classList.toggle('active', tab === 'drive');
+    document.getElementById('libBordSection').classList.toggle('active', tab === 'bord');
     if (tab === 'drive') libRenderDrive();
+    if (tab === 'bord') renderTableauBord();
   }
 
   async function libRenderDrive() {
