@@ -628,15 +628,30 @@
             <option value="numerique">Plans numériques fournis par le client</option>
           </select>
         </div>
-        <div class="field">
-          <label for="p_heures_dessin2d">Heures dessin 2D (forfait de base)</label>
-          <input type="number" id="p_heures_dessin2d" min="0" step="1" placeholder="Ex. 20">
-          <span class="unit">h — modifiable selon complexité</span>
+        <div class="field full">
+          <label for="p_niveau">Niveau de détail du dessin</label>
+          <select id="p_niveau">
+            <option value="brut">Brut — volumes, façades, ouvertures</option>
+            <option value="standard">Standard — + cloisons intérieures</option>
+            <option value="detaille">Détaillé — + cuisine, meubles, textures</option>
+          </select>
+          <span class="unit">Les heures de dessin se calculent sur la surface de plancher (longueur × largeur × étages).</span>
         </div>
         <div class="field">
-          <label for="p_heures_dessin3d">Heures dessin 3D (forfait de base)</label>
-          <input type="number" id="p_heures_dessin3d" min="0" step="1" placeholder="Ex. 30">
-          <span class="unit">h — modifiable selon complexité</span>
+          <label for="p_ajust_dessin">Ajustement dessin</label>
+          <input type="number" id="p_ajust_dessin" step="0.5" placeholder="0">
+          <span class="unit">h en plus (ou en moins) selon la complexité</span>
+        </div>
+        <div class="field"></div>
+        <div class="field">
+          <label for="p_impr_heures">Temps d'impression (trancheur)</label>
+          <input type="number" id="p_impr_heures" min="0" step="1" placeholder="Vide = estimation auto">
+          <span class="unit">h machine</span>
+        </div>
+        <div class="field">
+          <label for="p_impr_grammes">Filament (trancheur)</label>
+          <input type="number" id="p_impr_grammes" min="0" step="10" placeholder="Vide = estimation auto">
+          <span class="unit">grammes</span>
         </div>
       </div>
 
@@ -683,7 +698,7 @@
       <h2>Matériaux</h2>
       <p class="hint">
         Matériaux à quantité variable selon le projet (lampadaires, LED, arbres…). Indique la quantité réellement utilisée.
-        Les matériaux calculés automatiquement (plateau bois, polystyrène, plastique bâtiment, enduit, flocage, gravier) sont gérés à l'étape Paramètres et n'apparaissent pas ici.
+        Les matériaux calculés automatiquement (plateau bois, filament, polystyrène, enduit, flocage, gravier) sont gérés à l'étape Paramètres et n'apparaissent pas ici.
       </p>
       <table class="mat-table">
         <thead><tr><th>Matériau</th><th class="col-prix">Prix (€)</th><th class="col-unite">Unité</th><th class="col-percent">Quantité</th><th class="col-del"></th></tr></thead>
@@ -709,7 +724,7 @@
           </div>
         </div>
         <div class="field full">
-          <label>Découpe</label>
+          <label>Préparation impression / découpe</label>
           <div class="rate-pair">
             <div class="rate-box"><label>Sans charges (€/h)</label><input type="number" id="param_taux_decoupe" step="0.5" placeholder="Ex. 25"></div>
             <div class="rate-sep">↔</div>
@@ -746,11 +761,29 @@
         <div class="field"><label for="param_gravier">Gravier mini (1 paquet / projet)</label><input type="number" id="param_gravier" step="0.1"><span class="unit">€</span></div>
       </div>
 
+      <h3>Heures de dessin (selon le niveau de détail)</h3>
+      <div class="field-grid">
+        <div class="field"><label for="param_dessin_brut_base">Dessin Brut — base</label><input type="number" id="param_dessin_brut_base" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_dessin_brut_m2">Dessin Brut — par m²</label><input type="number" id="param_dessin_brut_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
+        <div class="field"><label for="param_dessin_std_base">Dessin Standard — base</label><input type="number" id="param_dessin_std_base" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_dessin_std_m2">Dessin Standard — par m²</label><input type="number" id="param_dessin_std_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
+        <div class="field"><label for="param_dessin_det_base">Dessin Détaillé — base</label><input type="number" id="param_dessin_det_base" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_dessin_det_m2">Dessin Détaillé — par m²</label><input type="number" id="param_dessin_det_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
+        <div class="field"><label for="param_plans_papier_m2">Mise au propre plans papier / relevé</label><input type="number" id="param_plans_papier_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
+      </div>
+
+      <h3>Impression 3D</h3>
+      <div class="field-grid">
+        <div class="field"><label for="param_filament_kg">Filament</label><input type="number" id="param_filament_kg" step="0.5"><span class="unit">€ / kg</span></div>
+        <div class="field"><label for="param_machine_h">Imprimante (électricité, usure)</label><input type="number" id="param_machine_h" step="0.1"><span class="unit">€ / heure machine</span></div>
+        <div class="field"><label for="param_prep_impr_base">Préparation impression — base</label><input type="number" id="param_prep_impr_base" step="0.5"><span class="unit">h (STL, plateaux)</span></div>
+        <div class="field"><label for="param_prep_impr_par_h">Préparation impression — suivi</label><input type="number" id="param_prep_impr_par_h" step="0.01"><span class="unit">h par heure machine (surveillance, reprises)</span></div>
+        <div class="field"><label for="param_impr_h_cm2">Estimation temps machine</label><input type="number" id="param_impr_h_cm2" step="0.001"><span class="unit">h par cm² de maquette et par étage (Bati Tole ≈ 0,025)</span></div>
+        <div class="field"><label for="param_impr_g_cm2">Estimation filament</label><input type="number" id="param_impr_g_cm2" step="0.05"><span class="unit">g par cm² de maquette et par étage (Bati Tole ≈ 1,5)</span></div>
+      </div>
+
       <h3>Forfaits</h3>
       <div class="field-grid">
-        <div class="field"><label for="param_plastique_forfait">Plastique bâtiment — forfait</label><input type="number" id="param_plastique_forfait" step="1"><span class="unit">€, toujours appliqué</span></div>
-        <div class="field"><label for="param_plastique_tranche">Plastique bâtiment — par tranche</label><input type="number" id="param_plastique_tranche" step="1"><span class="unit">€ par tranche</span></div>
-        <div class="field"><label for="param_plastique_seuil">Plastique bâtiment — seuil tranche</label><input type="number" id="param_plastique_seuil" step="50"><span class="unit">cm² maquette par tranche</span></div>
         <div class="field"><label for="param_mobilier_tranche">Mobilier — par tranche</label><input type="number" id="param_mobilier_tranche" step="1"><span class="unit">€ / 50 m² bâtiment (+ dessin cuisine)</span></div>
         <div class="field"><label for="param_releve_forfait">Relevé sur place — forfait</label><input type="number" id="param_releve_forfait" step="1"><span class="unit">€, si aucun plan fourni</span></div>
         <div class="field"><label for="param_releve_tranche">Relevé sur place — par tranche</label><input type="number" id="param_releve_tranche" step="1"><span class="unit">€ / 50 m² bâtiment</span></div>
@@ -849,7 +882,10 @@
 
   function defaultParams(){
     return {
-      taux_dessin:40, taux_decoupe:25, taux_assemblage:25, taux_peinture:25,
+      taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
+      dessin_brut_base:4, dessin_brut_m2:0.05, dessin_std_base:6, dessin_std_m2:0.10, dessin_det_base:8, dessin_det_m2:0.20,
+      plans_papier_m2:0.04,
+      filament_kg:25, machine_h:1, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.03,
       polystyrene:8, plateau:20, enduit:5, flocage:6, gravier:6.5, vernis:19, bois_jupe:12, tasseaux:8,
       plastique_forfait:500, plastique_tranche:50, plastique_seuil:500,
       mobilier_tranche:30,
@@ -857,7 +893,7 @@
       deplacement_tranche:30,
       cloche_forfait:400, cloche_tranche:100,
       cadre_forfait:400, cadre_tranche:100,
-      charges:26, marge:15, tva:0
+      charges:25, marge:15, tva:0
     };
   }
 
@@ -865,7 +901,7 @@
     const opts = {};
     optionDefs.forEach(o => opts[o.key] = false);
     return {
-      projet: { nom:'', client:'', adresse:'', email:'', telephone:'', numero_devis:'', date_devis:'', description:'', echelle:'50', echelleCustom:'', type:'Maison individuelle', etages:'', plans2d:'papier', deplacement:false, distance:'', heures_dessin2d:20, heures_dessin3d:30 },
+      projet: { nom:'', client:'', adresse:'', email:'', telephone:'', numero_devis:'', date_devis:'', description:'', echelle:'50', echelleCustom:'', type:'Maison individuelle', etages:'', plans2d:'papier', deplacement:false, distance:'', heures_dessin2d:20, heures_dessin3d:30, niveau:'standard', ajust_dessin:0, impr_heures:'', impr_grammes:'' },
       dimensions: { longueur:'', largeur:'', hauteur:'', jardin:'' },
       options: opts,
       materiaux: JSON.parse(JSON.stringify(defaultMateriaux)),
@@ -887,6 +923,7 @@
     return { Sbat, Sjardin, Sbase: Sbat + Sjardin };
   }
   function tranche(surface, taille){ return Math.floor((surface||0) / taille); }
+  function arr1(h){ return Math.round(h * 2) / 2; } // arrondi à la demi-heure
 
   // ---------- Navigation ----------
   function showStep(n){
@@ -920,8 +957,10 @@
     state.projet.plans2d = document.getElementById('p_plans2d').value;
     state.projet.deplacement = document.getElementById('p_deplacement').checked;
     state.projet.distance = document.getElementById('p_distance').value;
-    state.projet.heures_dessin2d = parseFloat(document.getElementById('p_heures_dessin2d').value) || 20;
-    state.projet.heures_dessin3d = parseFloat(document.getElementById('p_heures_dessin3d').value) || 30;
+    state.projet.niveau = document.getElementById('p_niveau').value || 'standard';
+    state.projet.ajust_dessin = parseFloat(document.getElementById('p_ajust_dessin').value) || 0;
+    state.projet.impr_heures = document.getElementById('p_impr_heures').value;
+    state.projet.impr_grammes = document.getElementById('p_impr_grammes').value;
 
     state.dimensions.longueur = document.getElementById('d_longueur').value;
     state.dimensions.largeur = document.getElementById('d_largeur').value;
@@ -956,9 +995,7 @@
     p.vernis = parseFloat(document.getElementById('param_vernis').value) || 0;
     p.bois_jupe = parseFloat(document.getElementById('param_bois_jupe').value) || 0;
     p.tasseaux = parseFloat(document.getElementById('param_tasseaux').value) || 0;
-    p.plastique_forfait = parseFloat(document.getElementById('param_plastique_forfait').value) || 0;
-    p.plastique_tranche = parseFloat(document.getElementById('param_plastique_tranche').value) || 0;
-    p.plastique_seuil = parseFloat(document.getElementById('param_plastique_seuil').value) || 500;
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -990,8 +1027,10 @@
     document.getElementById('p_deplacement').checked = state.projet.deplacement;
     document.getElementById('p_distance_wrap').style.display = state.projet.deplacement ? 'flex' : 'none';
     document.getElementById('p_distance').value = state.projet.distance;
-    document.getElementById('p_heures_dessin2d').value = state.projet.heures_dessin2d !== undefined ? state.projet.heures_dessin2d : 20;
-    document.getElementById('p_heures_dessin3d').value = state.projet.heures_dessin3d !== undefined ? state.projet.heures_dessin3d : 30;
+    document.getElementById('p_niveau').value = state.projet.niveau || 'standard';
+    document.getElementById('p_ajust_dessin').value = state.projet.ajust_dessin || '';
+    document.getElementById('p_impr_heures').value = state.projet.impr_heures || '';
+    document.getElementById('p_impr_grammes').value = state.projet.impr_grammes || '';
 
     document.getElementById('d_longueur').value = state.dimensions.longueur;
     document.getElementById('d_largeur').value = state.dimensions.largeur;
@@ -1014,9 +1053,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    document.getElementById('param_plastique_forfait').value = p.plastique_forfait;
-    document.getElementById('param_plastique_tranche').value = p.plastique_tranche;
-    document.getElementById('param_plastique_seuil').value = p.plastique_seuil || 500;
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1109,18 +1146,26 @@
 
     const dessin = [], decoupe = [], assemblage = [], peinture = [], forfaits = [];
 
-    // --- Dessin ---
+    // --- Dessin (niveau de détail × surface de plancher réelle) ---
+    const nbEtages   = Math.max(1, parseInt(state.projet.etages) || 1);
+    const plancher   = SbatReel * nbEtages;
+    const niv        = state.projet.niveau || 'standard';
+    const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
       forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(SbatReel,50) });
-      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(SbatReel,50) });
+      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: arr1(p.plans_papier_m2 * plancher) });
     } else if (state.projet.plans2d === 'papier'){
-      dessin.push({ label:'Plans 2D (papier fourni)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(SbatReel,50) });
-    } else {
-      dessin.push({ label:'Plans 2D (numérique fourni)', heures: 2*tranche(SbatReel,50) });
+      dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher) });
     }
-    dessin.push({ label:'Plans 3D', heures: (state.projet.heures_dessin3d||30) + 10*tranche(SbatReel,50) });
-    dessin.push({ label:'Préparation STL + plateau imprimante', heures: 2 + 2*tranche(SbatReel,50) });
-    dessin.push({ label:'Redémarrage pièces ratées', heures: 1 + 1*tranche(SbatReel,50) });
+    dessin.push({ label:`Modélisation 3D — niveau ${NIV[0]} (${plancher.toFixed(0)} m² de plancher)`, heures: arr1(p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) });
+    if (state.projet.ajust_dessin) dessin.push({ label:'Ajustement complexité', heures: state.projet.ajust_dessin });
+
+    // --- Impression 3D (temps machine + filament) ---
+    const surfImpr  = (longueur/ev*100) * (largeur/ev*100) * nbEtages;   // cm² de maquette à imprimer (emprise × étages)
+    const hImpr     = parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2);
+    const gImpr     = parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2);
+    const estim     = !(parseFloat(state.projet.impr_heures) && parseFloat(state.projet.impr_grammes));
+    decoupe.push({ label:'Préparation impression (STL, plateaux, surveillance, reprises)', heures: arr1(p.prep_impr_base + p.prep_impr_par_h * hImpr) });
     if (o.eclairage_interieur){
       dessin.push({ label:'Schéma élec. intérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
       dessin.push({ label:'Dessin passage fils (intérieur)', heures: 2 + 1*tranche(SbatReel,50) });
@@ -1156,9 +1201,7 @@
     }
 
     // --- Forfaits directs ---
-    const SbatCm2 = Sbat * 10000; // surface maquette en cm²
-    const nbTranchesPlastique = Math.floor(SbatCm2 / (p.plastique_seuil||500));
-    forfaits.push({ label:`Plastique bâtiment — ${SbatCm2.toFixed(0)} cm² maquette (${nbTranchesPlastique} tranche${nbTranchesPlastique>1?'s':''})`, cost: p.plastique_forfait + p.plastique_tranche * nbTranchesPlastique });
+    forfaits.push({ label:`Impression 3D — ${hImpr} h machine${estim ? ' (estimation)' : ''}`, cost: hImpr * p.machine_h });
     if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(SbatReel,50)) });
     // Cloche/cadre : seuil en surface MAQUETTE (250 cm² = 0,025 m² — plus léchelle est grande, plus cest cher)
     const trancheMaquetteCm2 = Math.floor((Sbase * 10000) / 250);
@@ -1168,6 +1211,7 @@
 
     // --- Matériaux automatiques ---
     const matAuto = [];
+    matAuto.push({ label:`Filament — ${(gImpr/1000).toFixed(2).replace('.',',')} kg${estim ? ' (estimation)' : ''}`, cost: gImpr/1000 * p.filament_kg });
     if (Ccond){
       matAuto.push({ label:'Plateau bois', cost: p.plateau * Sbase });
       // Bois jupe & tasseaux calculés sur périmètre réel
@@ -1565,7 +1609,7 @@
 
     const breakdownHTML = `<table class="summary" style="margin-bottom:24px;">
       ${catRow('Conception &amp; dessin',       coutMODessin)}
-      ${catRow('Découpe laser / numérique',     coutMODecoupe)}
+      ${catRow('Préparation impression &amp; découpe', coutMODecoupe)}
       ${catRow('Assemblage',                    coutMOAssemblage)}
       ${catRow('Peinture &amp; finition',       coutMOPeinture)}
       ${catRow('Matériaux &amp; fournitures',   matClient)}
@@ -1602,7 +1646,7 @@
       let ci = 0;
       const addBar = (lbl, v) => { if(v > 0){ labels.push(lbl); vals.push(parseFloat(v.toFixed(2))); colors.push(palette[ci++ % palette.length]); } };
       addBar('MO Dessin', coutMODessin);
-      addBar('MO Découpe', coutMODecoupe);
+      addBar('Prépa. impression', coutMODecoupe);
       addBar('MO Assemblage', coutMOAssemblage);
       addBar('MO Peinture', coutMOPeinture);
       addBar('Matériaux', matClient);
@@ -2251,7 +2295,7 @@
 
     const cats = [
       { id:'dessin',     label:'Conception & dessin',       heures: sumH(dessin),     taux: p.taux_dessin    * (1+p.charges/100) },
-      { id:'decoupe',    label:'Découpe laser / numérique', heures: sumH(decoupe),    taux: p.taux_decoupe   * (1+p.charges/100) },
+      { id:'decoupe',    label:'Préparation impression & découpe', heures: sumH(decoupe),    taux: p.taux_decoupe   * (1+p.charges/100) },
       { id:'assemblage', label:'Assemblage',                heures: sumH(assemblage), taux: p.taux_assemblage* (1+p.charges/100) },
       { id:'peinture',   label:'Peinture & finition',       heures: sumH(peinture),   taux: p.taux_peinture  * (1+p.charges/100) },
     ].filter(c => c.heures > 0);
