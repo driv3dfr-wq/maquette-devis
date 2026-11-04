@@ -1629,11 +1629,13 @@
     const effTotal   = effPrinc + ANN.plancherEff;
     const fDeg       = effTotal > 0 ? m2Degressifs(effTotal) / effTotal : 1;   // part dégressive appliquée à tous les bâtiments
     const m2Dessin   = effTotal * fDeg;
+    const fFab       = plancher > 0 ? m2Dessin / plancher : 1;   // même réduction (étages identiques + dégressif) pour l'assemblage
+    const m2Princ    = effPrinc * fDeg;                            // bâtiment principal, en m² comptés
     const niv        = nivDessin(state.projet.niveau);
     const fEch = Math.sqrt(50 / (ev || 50));   // plus l'échelle est grande (1:10), plus il y a de détails à dessiner
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
-      forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(SbatReel,50) });
+      forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(m2Dessin,50) });
       dessin.push({ label:`Plans 2D (mise au propre après relevé, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch) });
     } else if (state.projet.plans2d === 'papier'){
       dessin.push({ label:`Plans 2D (redessin des plans papier, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch) });
@@ -1676,12 +1678,12 @@
     // --- Assemblage (dépend de la taille de la MAQUETTE) ---
     const SbatCm2Maq = Sbat * 10000;
     const SjarCm2Maq = Sjardin * 10000;
-    assemblage.push({ label:`Assemblage maquette 3D (${SbatCm2Maq.toFixed(0)} cm²)`, heures: arr1(p.assemblage_base_h + p.assemblage_par_cm2 * surfImpr) });
+    assemblage.push({ label:`Assemblage maquette 3D (${SbatCm2Maq.toFixed(0)} cm²)`, heures: arr1(p.assemblage_base_h + p.assemblage_par_cm2 * surfImpr * fFab) });
     if (o.jardin_amenage){
       assemblage.push({ label:'Jardin : tracé, scotch, colle, flocage, gravier', heures: arr1(p.jardin_base_h + p.jardin_par_cm2 * SjarCm2Maq) });
     }
-    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: p.elec_int_montage_base + p.elec_int_montage_50 * tranche(longueur * largeur,50) });
-    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: p.elec_ext_montage_base + p.elec_ext_montage_50 * tranche(SbatReel,50) });
+    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: p.elec_int_montage_base + p.elec_int_montage_50 * tranche(m2Princ,50) });
+    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: p.elec_ext_montage_base + p.elec_ext_montage_50 * tranche(m2Degressifs(SbatReel),50) });
     if (o.connectee) assemblage.push({ label:'Montage et essais du module connecté', heures: p.connectee_h_montage });
 
     // --- Peinture / finition ---
@@ -1694,7 +1696,7 @@
 
     // --- Forfaits directs ---
     forfaits.push({ label:`Impression 3D — ${hImpr} h machine, dont ${hPieds} h pour ${nbPieds} pieds${estim ? ' (estimation)' : ''}`, cost: hImpr * p.machine_h });
-    if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(longueur * largeur,50)) });
+    if (o.mobilier) forfaits.push({ label:'Mobilier (impression + préparation)', cost: p.mobilier_tranche * Math.max(1, tranche(m2Princ,50)) });
     // Cloche/cadre : seuil en surface MAQUETTE (250 cm² = 0,025 m² — plus léchelle est grande, plus cest cher)
     const trancheMaquetteCm2 = Math.floor((Sbase * 10000) / 250);
     if (o.cloche_plexi) forfaits.push({ label:'Cloche de protection plexi', cost: p.cloche_forfait + p.cloche_tranche * trancheMaquetteCm2 });
