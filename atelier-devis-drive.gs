@@ -125,6 +125,22 @@ function api_(b) {
         return { ok: true, id: f.getId() };
       }
 
+      case 'numero': {
+        // Prochain numéro de devis (MQ) ou de facture (FA), commun à tous les appareils
+        const an = parseInt(b.an, 10) || new Date().getFullYear();
+        const pre = b.prefixe === 'FA' ? 'FA' : 'MQ';
+        const re = new RegExp('^' + pre + '-' + an + '-(\\d+)$');
+        const cleProp = 'NUM_' + pre + '_' + an;
+        let max = Math.max(parseInt(PROPS.getProperty(cleProp) || '0', 10), parseInt(b.minimum, 10) || 0);
+        if (pre === 'MQ') {
+          const sh = tableur_().getSheets()[0], n = sh.getLastRow();
+          if (n >= 2) sh.getRange(2, 4, n - 1, 1).getValues().forEach(r => { const m = re.exec(String(r[0]).trim()); if (m) max = Math.max(max, parseInt(m[1], 10)); });
+        }
+        max++;
+        PROPS.setProperty(cleProp, String(max));
+        return { ok: true, numero: pre + '-' + an + '-' + String(max).padStart(3, '0') };
+      }
+
       case 'delete': {
         const f = DriveApp.getFileById(b.id);
         if (!estDansDossier_(f)) return { ok: false, err: 'Fichier inconnu' };

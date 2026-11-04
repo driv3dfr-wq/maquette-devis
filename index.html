@@ -1038,7 +1038,7 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   function numeroterNouveau(st){
-    if (!st.projet.numero_devis) st.projet.numero_devis = prochainNumero();
+    if (!st.projet.numero_devis){ st.projet.numero_devis = prochainNumero(); st.projet.numero_auto = true; st.projet.numero_reserve = false; }
     if (!st.projet.date_devis) st.projet.date_devis = aujourdhuiISO();
   }
 
@@ -1391,7 +1391,9 @@
     state.projet.adresse = document.getElementById('p_adresse').value;
     state.projet.email = document.getElementById('p_email').value;
     state.projet.telephone = document.getElementById('p_telephone').value;
-    state.projet.numero_devis = document.getElementById('p_numero_devis').value;
+    const numSaisi = document.getElementById('p_numero_devis').value;
+    if (numSaisi !== (state.projet.numero_devis || '')) state.projet.numero_auto = false;   // numéro tapé à la main : on n'y touche plus
+    state.projet.numero_devis = numSaisi;
     state.projet.date_devis = document.getElementById('p_date_devis').value;
     changerStatut(state, document.getElementById('p_statut').value);
     state.projet.description = document.getElementById('p_description').value;
@@ -2161,7 +2163,18 @@
       document.getElementById('btnFacture').onclick = () => {
         if (!['accepte','fabrication','livre','paye'].includes(pr.statut || '') && !confirm("Ce devis n'est pas marqué « Accepté ». Créer la facture quand même ?")) return;
         const ac = parseFloat(state.params.acompte_pct) || 0;
-        state.projet.numero_facture = prochaineFacture();
+        const numLocal = prochaineFacture();
+        state.projet.numero_facture = numLocal;
+        if (getDriveUrl()){   // numéro de facture commun à tous les appareils
+          const m = /^FA-(\d{4})-(\d+)$/.exec(numLocal);
+          driveCall({ action:'numero', prefixe:'FA', an: m ? +m[1] : new Date().getFullYear(), minimum: m ? +m[2] - 1 : 0 }).then(r => {
+            if (r && r.numero && state.projet.numero_facture === numLocal){
+              state.projet.numero_facture = r.numero;
+              try { localStorage.setItem(COMPTEUR_FA_KEY, r.numero); } catch(e){}
+              libAdd(state); renderClientView();
+            }
+          }).catch(() => {});
+        }
         state.projet.date_facture = aujourdhuiISO();
         state.projet.acompte_verse = ac > 0 && ac < 100 ? Math.round(total * ac) / 100 : 0;
         if (!['fabrication','livre','paye'].includes(state.projet.statut)) changerStatut(state, 'accepte');
@@ -3196,8 +3209,32 @@
     return st._uid;
   }
 
+  // Numéro définitif réservé sur le Drive (commun à tous les appareils), à la première sauvegarde
+  async function reserverNumeroDrive(projectState, uid){
+    const pr = projectState.projet || {};
+    if (!pr.numero_auto || pr.numero_reserve) return;
+    const i = numeroInfo(pr.numero_devis);
+    try {
+      const r = await driveCall({ action:'numero', prefixe:'MQ', an: i ? i.an : new Date().getFullYear(), minimum: i ? i.n - 1 : 0 });
+      if (!r || !r.numero) return;
+      pr.numero_devis = r.numero; pr.numero_reserve = true;
+      retenirNumero(r.numero);
+      if (state._uid === uid){
+        state.projet.numero_devis = r.numero; state.projet.numero_reserve = true;
+        const champ = document.getElementById('p_numero_devis'); if (champ) champ.value = r.numero;
+        try { renderClientView(); } catch(e){}
+      }
+      const lib = libLoad(), e = lib.find(x => x.uid === uid);
+      if (e){ try { const d = JSON.parse(e.data); d.projet.numero_devis = r.numero; d.projet.numero_reserve = true; e.data = JSON.stringify(d); libSave(lib); } catch(err){} }
+    } catch(e){
+      // Ancien script Drive sans numérotation : on garde définitivement le numéro de l'appareil (il a pu être envoyé au client)
+      if (/Action inconnue/.test(e && e.message || '')){ pr.numero_reserve = true; if (state._uid === uid) state.projet.numero_reserve = true; }
+    }
+  }
+
   async function driveSaveProject(projectState) {
     const uid = projectUid(projectState);
+    await reserverNumeroDrive(projectState, uid);
     const pr = projectState.projet || {};
     let total = null;
     try { total = computeAndRenderResult().totalTTC; } catch(e) {}
