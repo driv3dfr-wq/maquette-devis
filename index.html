@@ -406,10 +406,11 @@
   .ach-table tr.ach-ok td{ color:var(--ink-soft); }
   .ach-table tr.ach-ok td:first-child{ text-decoration:line-through; }
   .cat-hist{ font-size:12px; color:var(--ink-soft); }
+  .cat-lien{ font-size:12px; font-weight:600; color:var(--blue); white-space:nowrap; }
   .cat-hist summary{ cursor:pointer; }
   .cat-hist ul{ margin:4px 0 0 16px; padding:0; }
   .cat-actions button{ padding:4px 8px; font-size:12px; }
-  @media (max-width:640px){ .ach-table .ach-hide-m{ display:none; } .ach-table td input[type=number]{ width:60px; } }
+  @media (max-width:640px){ .ach-table .ach-hide-m,.ach-table .ach-txt{ display:none; } .ach-table td,.ach-table th{ padding:6px 3px; } .ach-table td input[type=number]{ width:46px !important; padding:6px 4px; } .ach-table select{ max-width:130px; } }
   .suivi-table{ width:100%; border-collapse:collapse; font-size:13px; margin-bottom:24px; }
   .suivi-table th{ text-align:left; padding:6px 8px; font-size:10px; text-transform:uppercase;
     letter-spacing:0.06em; color:var(--ink-soft); border-bottom:2px solid var(--blue); }
@@ -3600,6 +3601,8 @@ document.addEventListener('wheel', function(e){
   const uniteArt = a => a.unite || (CAT_ACH[a.cat] || CAT_ACH.autre)[1];
   const artById = id => catalogue.articles.find(a => a.id === id);
 
+  function lienPropre(v){ v = String(v || '').trim(); if (!v) return ''; if (!/^https?:\/\//i.test(v)) v = 'https://' + v.replace(/^\/+/, ''); try { const u = new URL(v); return /^https?:$/.test(u.protocol) ? u.href : ''; } catch(e){ return ''; } }
+  function lienHTML(a){ return a && a.lien ? ` <a href="${escapeHtml(a.lien)}" target="_blank" rel="noopener" class="cat-lien" title="Ouvrir la page d'achat">🔗 Acheter en ligne</a>` : ''; }
   function catSave(){
     catalogue.maj = new Date().toISOString();
     try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){}
@@ -3656,6 +3659,7 @@ document.addEventListener('wheel', function(e){
       <div><label>Prix d'un achat (€)</label><input id="cf_prix" type="number" step="0.01" min="0" value="${v(a.prix)}"></div>
       <div><label>Magasin / fournisseur</label><input id="cf_four" placeholder="ex. Leroy Merlin Troyes" value="${v(a.fournisseur)}"></div>
       <div><label>Référence</label><input id="cf_ref" placeholder="réf. magasin" value="${v(a.ref)}"></div>
+      <div style="grid-column:1/-1;"><label>Lien d'achat (si en ligne)</label><input id="cf_lien" type="url" inputmode="url" placeholder="https://… (coller l'adresse de la page produit)" value="${v(a.lien)}"></div>
       ${a._texte ? `<details class="full cat-hist" style="display:block;"><summary>📷 Lu sur la photo : vérifie et corrige les cases ci-dessus</summary><pre style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;">${e(a._texte)}</pre></details>` : ''}
       <div class="full"><button class="btn" id="cf_annuler">Annuler</button><button class="btn primary" id="cf_ok">Enregistrer l'article</button></div>
     </div>`;
@@ -3687,7 +3691,7 @@ document.addEventListener('wheel', function(e){
         L.map(a => {
           const h = (a.achats || []).slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''));
           const pu = a.qte > 0 ? eur(a.prix / a.qte) + ' / ' + escapeHtml(uniteArt(a)) : '—';
-          return `<tr><td><strong>${escapeHtml(a.nom || 'Sans nom')}</strong>${a.fournisseur ? `<br><span class="cat-hist">${escapeHtml(a.fournisseur)}${a.ref ? ' · réf. ' + escapeHtml(a.ref) : ''}</span>` : ''}
+          return `<tr><td><strong>${escapeHtml(a.nom || 'Sans nom')}</strong>${lienHTML(a)}${a.fournisseur ? `<br><span class="cat-hist">${escapeHtml(a.fournisseur)}${a.ref ? ' · réf. ' + escapeHtml(a.ref) : ''}</span>` : ''}
               ${h.length ? `<details class="cat-hist"><summary>${h.length} achat${h.length > 1 ? 's' : ''}, dernier le ${new Date(h[0].date).toLocaleDateString('fr-FR')}</summary><ul>${h.map(t => `<li>${new Date(t.date).toLocaleDateString('fr-FR')} : ${t.nb} × pour ${eur(t.prix)}${t.magasin ? ' chez ' + escapeHtml(t.magasin) : ''}${t.projet ? ' (projet ' + escapeHtml(t.projet) + ')' : ''}${t.note ? ' · ' + escapeHtml(t.note) : ''}</li>`).join('')}</ul></details>` : ''}</td>
             <td class="ach-hide-m">${escapeHtml(a.dims || '')}</td>
             <td class="ach-hide-m">${escapeHtml(a.cond || '')}${a.qte ? `<br><span class="cat-hist">= ${nbFr(a.qte)} ${escapeHtml(uniteArt(a))}</span>` : ''}</td>
@@ -3709,7 +3713,7 @@ document.addEventListener('wheel', function(e){
         if (!a) { a = { id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), achats:[] }; catalogue.articles.push(a); }
         Object.assign(a, { nom, cat: cat.value, dims: document.getElementById('cf_dims').value.trim(), cond: document.getElementById('cf_cond').value.trim(),
           qte: numFr(document.getElementById('cf_qte').value), unite: document.getElementById('cf_unite').value.trim(), prix: numFr(document.getElementById('cf_prix').value),
-          fournisseur: document.getElementById('cf_four').value.trim(), ref: document.getElementById('cf_ref').value.trim() });
+          fournisseur: document.getElementById('cf_four').value.trim(), ref: document.getElementById('cf_ref').value.trim(), lien: lienPropre(document.getElementById('cf_lien').value) });
         catEdit = null; catPrefill = null; catSave(); renderCatalogue();
       });
       f.scrollIntoView({ block:'nearest' });
@@ -3839,6 +3843,9 @@ document.addEventListener('wheel', function(e){
     if ((r.cat === 'tasseaux' || r.cat === 'bois_jupe') && longueurM) r.qte = Math.round(n * longueurM * 100) / 100;
     else if (r.cat === 'filament' && kg) r.qte = kg[2].toLowerCase() === 'kg' ? nb(kg[1]) * n : nb(kg[1]) / 1000 * n;
     else if (cond) r.qte = n;
+    // Adresse de la page (capture d'écran avec la barre d'adresse)
+    const url = /\b((?:https?:\/\/)?(?:www\.)?[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.(?:fr|com|eu|de|be|net|shop|store)(?:\/[^\s]*)?)/i.exec(txt);
+    if (url && /\//.test(url[1].replace(/^https?:\/\//, ''))) r.lien = lienPropre(url[1]);
     // Date (ticket) : 04/11/2026 ou 04-11-26
     const d = /\b(\d{2})[\/.\-](\d{2})[\/.\-](\d{2,4})\b/.exec(txt);
     if (d) { const an = d[3].length === 2 ? '20' + d[3] : d[3]; const iso = `${an}-${d[2]}-${d[1]}`; if (!isNaN(Date.parse(iso))) r.date = iso; }
@@ -3901,10 +3908,10 @@ document.addEventListener('wheel', function(e){
       const sel = `<select data-art="${i}"><option value="">${choix.length ? '— choisir dans le catalogue —' : '— aucun article de ce type —'}</option>${choix.map(x => `<option value="${x.id}"${x.id === s.art ? ' selected' : ''}>${escapeHtml(x.nom)}${x.dims ? ' · ' + escapeHtml(x.dims) : ''}${x.cond ? ' · ' + escapeHtml(x.cond) : ''}${x.prix ? ' · ' + eur(x.prix) : ''}</option>`).join('')}</select>`;
       return `<tr class="${s.achete ? 'ach-ok' : ''}">
         <td><strong>${escapeHtml(l.label)}</strong>${l.besoin ? `<br><span class="cat-hist">Besoin : ${nbFr(l.besoin)} ${escapeHtml(l.unite)}</span>` : ''}${l.libre ? ` <button class="btn" data-sup="${i}" style="padding:2px 6px;font-size:11px;" title="Retirer">✕</button>` : ''}</td>
-        <td>${sel}${a && a.qte ? `<br><span class="cat-hist">${a.cond ? escapeHtml(a.cond) + ' = ' : ''}${nbFr(a.qte)} ${escapeHtml(uniteArt(a))}${a.dims ? ' · ' + escapeHtml(a.dims) : ''}</span>` : (a && a.dims ? `<br><span class="cat-hist">${escapeHtml(a.dims)}</span>` : '')}</td>
+        <td>${sel}${a && a.lien ? ' ' + lienHTML(a) : ''}${a && a.qte ? `<br><span class="cat-hist">${a.cond ? escapeHtml(a.cond) + ' = ' : ''}${nbFr(a.qte)} ${escapeHtml(uniteArt(a))}${a.dims ? ' · ' + escapeHtml(a.dims) : ''}</span>` : (a && a.dims ? `<br><span class="cat-hist">${escapeHtml(a.dims)}</span>` : '')}</td>
         <td style="text-align:center;"><input type="number" min="0" step="1" data-nb="${i}" value="${nb || ''}" placeholder="—"></td>
         <td style="text-align:right;" class="ach-hide-m">${estime ? eur(estime) : '—'}</td>
-        <td style="text-align:center;white-space:nowrap;"><label style="cursor:pointer;"><input type="checkbox" data-ok="${i}"${s.achete ? ' checked' : ''}> acheté</label>${s.achete ? `<br><input type="number" min="0" step="0.01" data-paye="${i}" value="${s.paye != null ? s.paye : Math.round(estime * 100) / 100}" title="Prix payé (€)"> €` : ''}</td></tr>`;
+        <td style="text-align:center;white-space:nowrap;"><label style="cursor:pointer;"><input type="checkbox" data-ok="${i}"${s.achete ? ' checked' : ''}><span class="ach-txt"> acheté</span></label>${s.achete ? `<br><input type="number" min="0" step="0.01" data-paye="${i}" value="${s.paye != null ? s.paye : Math.round(estime * 100) / 100}" title="Prix payé (€)"> €` : ''}</td></tr>`;
     }).join('');
     const libres = catalogue.articles.length ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-10px 0 18px;">
         <select id="achAjout" style="max-width:320px;"><option value="">＋ Ajouter un article du catalogue…</option>${catalogue.articles.map(x => `<option value="${x.id}">${escapeHtml(x.nom)}${x.dims ? ' · ' + escapeHtml(x.dims) : ''}</option>`).join('')}</select></div>` : '';
@@ -3953,7 +3960,7 @@ document.addEventListener('wheel', function(e){
       const txt = 'Achats — ' + (state.projet.nom || 'projet') + '\n' + L.map(l => {
         const s = state.achats[l.key] || {}; if (s.achete) return null;
         const { a, nb } = calculLigne(l, s);
-        return '☐ ' + (a ? `${nb} × ${a.nom}${a.dims ? ' (' + a.dims + ')' : ''}${a.cond ? ', ' + a.cond : ''}${a.fournisseur ? ' — ' + a.fournisseur : ''}` : `${l.label} : ${nbFr(l.besoin)} ${l.unite}`);
+        return '☐ ' + (a ? `${nb} × ${a.nom}${a.dims ? ' (' + a.dims + ')' : ''}${a.cond ? ', ' + a.cond : ''}${a.fournisseur ? ' — ' + a.fournisseur : ''}${a.lien ? '\n   ' + a.lien : ''}` : `${l.label} : ${nbFr(l.besoin)} ${l.unite}`);
       }).filter(Boolean).join('\n');
       const ok = () => { const b = document.getElementById('achCopier'); if (b) { b.textContent = '✓ Copiée'; setTimeout(() => { b.textContent = '📋 Copier la liste de courses'; }, 1800); } };
       if (navigator.clipboard) navigator.clipboard.writeText(txt).then(ok, () => prompt('Copie la liste :', txt)); else prompt('Copie la liste :', txt);
