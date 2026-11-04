@@ -480,6 +480,7 @@
     <nav class="file-actions" aria-label="Actions">
       <button class="btn primary" id="btnLibrary">📁 Mes projets</button>
       <button class="btn" id="btnNew">＋ Nouveau devis</button>
+      <button class="btn" id="btnSave" title="Enregistrer sur cet appareil et sur le Drive">💾 Enregistrer</button>
       <button class="drive-chip" id="btnDrive" title="Synchronisation Google Drive">☁ Drive</button>
       <details class="more-menu" id="moreMenu">
         <summary class="btn" aria-label="Plus d'actions">⋯ Plus</summary>
@@ -1232,14 +1233,15 @@
   function libSave(lib){ try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch(e){} }
 
   function libAdd(projectState){
-    projectUid(projectState);
+    const uid = projectUid(projectState);
     driveAutoSave(projectState);
-    const lib = libLoad();
+    // Un projet = une seule fiche : on remplace l'ancienne version du même projet
+    const lib = libLoad().filter(e => e.uid !== uid);
     const id = Date.now().toString();
     const { Sbat } = computeSurfaces();
     // calcul rapide du total TTC pour affichage dans la carte
     const snap = JSON.stringify(projectState);
-    lib.unshift({ id, savedAt: new Date().toISOString(), nom: projectState.projet.nom || 'Sans titre', client: projectState.projet.client || '', echelle: projectState.projet.echelle, data: snap });
+    lib.unshift({ id, uid, savedAt: new Date().toISOString(), nom: projectState.projet.nom || 'Sans titre', client: projectState.projet.client || '', echelle: projectState.projet.echelle, data: snap });
     // Limiter à 50 projets
     if (lib.length > 50) lib.pop();
     libSave(lib);
@@ -2624,6 +2626,16 @@
     m.querySelectorAll('.more-panel button').forEach(b => b.addEventListener('click', () => m.open = false));
     document.addEventListener('click', e => { if (m.open && !m.contains(e.target)) m.open = false; });
   })();
+</script>
+<script>
+  // Bouton Enregistrer : met à jour la fiche du projet (appareil + Drive), sans télécharger de fichier
+  document.getElementById('btnSave').addEventListener('click', () => {
+    readFormIntoState();
+    libAdd(state);
+    const b = document.getElementById('btnSave');
+    b.textContent = '✓ Enregistré';
+    setTimeout(() => { b.textContent = '💾 Enregistrer'; }, 1800);
+  });
 </script>
 </body>
 </html>
