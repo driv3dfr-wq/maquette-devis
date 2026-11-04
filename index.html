@@ -900,11 +900,16 @@
         <div class="field"><label for="param_dessin_det_base">Dessin Détaillé — base</label><input type="number" id="param_dessin_det_base" step="0.5"><span class="unit">h</span></div>
         <div class="field"><label for="param_dessin_det_m2">Dessin Détaillé — par m²</label><input type="number" id="param_dessin_det_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
         <div class="field"><label for="param_etage_repete_pct">Étage identique en plus</label><input type="number" id="param_etage_repete_pct" step="5"><span class="unit">% d'un étage (le 1er compte 100 %)</span></div>
-        <div class="field"><label for="param_degr_seuil1">Dégressif — 1er seuil</label><input type="number" id="param_degr_seuil1" step="50"><span class="unit">m² comptés en entier</span></div>
+        <div class="field"><label for="param_degr_seuil1">Dégressif fabrication — 1er seuil</label><input type="number" id="param_degr_seuil1" step="50"><span class="unit">m² comptés en entier</span></div>
         <div class="field"><label for="param_degr_pct1">Au-delà du 1er seuil</label><input type="number" id="param_degr_pct1" step="5"><span class="unit">% de chaque m²</span></div>
-        <div class="field"><label for="param_degr_seuil2">Dégressif — 2e seuil</label><input type="number" id="param_degr_seuil2" step="50"><span class="unit">m²</span></div>
+        <div class="field"><label for="param_degr_seuil2">Dégressif fabrication — 2e seuil</label><input type="number" id="param_degr_seuil2" step="50"><span class="unit">m²</span></div>
         <div class="field"><label for="param_degr_pct2">Au-delà du 2e seuil</label><input type="number" id="param_degr_pct2" step="5"><span class="unit">% de chaque m²</span></div>
-        <div class="field"><label for="param_plans_papier_m2">Mise au propre plans papier / relevé</label><input type="number" id="param_plans_papier_m2" step="0.01"><span class="unit">h / m² de plancher</span></div>
+        <div class="field"><label for="param_dessin_seuil1">Dégressif dessin — 1er seuil</label><input type="number" id="param_dessin_seuil1" step="100"><span class="unit">m² comptés en entier (plans 2D, 3D, relevé)</span></div>
+        <div class="field"><label for="param_dessin_pct1">Au-delà du 1er seuil</label><input type="number" id="param_dessin_pct1" step="1"><span class="unit">% de chaque m²</span></div>
+        <div class="field"><label for="param_dessin_seuil2">Dégressif dessin — 2e seuil</label><input type="number" id="param_dessin_seuil2" step="100"><span class="unit">m²</span></div>
+        <div class="field"><label for="param_dessin_pct2">Au-delà du 2e seuil</label><input type="number" id="param_dessin_pct2" step="1"><span class="unit">% de chaque m²</span></div>
+        <div class="field"><label for="param_plans_papier_m2">Plans 2D (redessin ou mise au propre)</label><input type="number" id="param_plans_papier_m2" step="0.005"><span class="unit">h / m² de plancher</span></div>
+        <div class="field"><label for="param_releve_m2_h">Relevé sur place</label><input type="number" id="param_releve_m2_h" step="0.005"><span class="unit">h / m² de plancher (2 h minimum), si aucun plan fourni</span></div>
       </div>
 
       <h3>Fabrication (heures)</h3>
@@ -936,8 +941,6 @@
       <h3>Forfaits</h3>
       <div class="field-grid">
         <div class="field"><label for="param_mobilier_tranche">Mobilier — par tranche</label><input type="number" id="param_mobilier_tranche" step="1"><span class="unit">€ / 50 m² bâtiment (+ dessin cuisine)</span></div>
-        <div class="field"><label for="param_releve_forfait">Relevé sur place — forfait</label><input type="number" id="param_releve_forfait" step="1"><span class="unit">€, si aucun plan fourni</span></div>
-        <div class="field"><label for="param_releve_tranche">Relevé sur place — par tranche</label><input type="number" id="param_releve_tranche" step="1"><span class="unit">€ / 50 m² bâtiment</span></div>
         <div class="field"><label for="param_deplacement_tranche">Déplacement — par tranche</label><input type="number" id="param_deplacement_tranche" step="1"><span class="unit">€ / 50 km</span></div>
         <div class="field"><label for="param_cloche_forfait">Cloche plexi — forfait</label><input type="number" id="param_cloche_forfait" step="1"><span class="unit">€</span></div>
         <div class="field"><label for="param_cloche_tranche">Cloche plexi — par tranche</label><input type="number" id="param_cloche_tranche" step="1"><span class="unit">€ / 250 cm² de maquette (dépend de léchelle)</span></div>
@@ -1313,8 +1316,8 @@
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
       etage_repete_pct:25, masse_m2:0.01, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
-      dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.10,
-      plans_papier_m2:0.05,
+      dessin_brut_base:1, dessin_brut_m2:0.03, dessin_std_base:1.5, dessin_std_m2:0.04, dessin_det_base:2, dessin_det_m2:0.055,
+      plans_papier_m2:0.03, releve_m2_h:0.02, dessin_seuil1:1500, dessin_pct1:5, dessin_seuil2:5000, dessin_pct2:0,
       filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
       bois_base_h:5, bois_par_m_h:3, assemblage_base_h:3, assemblage_par_cm2:0.0013, jardin_base_h:2.5, jardin_par_cm2:0.0003, impr_h_cm2:0.025, impr_g_cm2:1.5, prep_impr_base:1, prep_impr_par_h:0.025,
       polystyrene:8, plateau:20, enduit:5, flocage:10, gravier:3.5, vernis:19, bois_jupe:12, tasseaux:8,
@@ -1373,6 +1376,12 @@
     }, { emprise:0, plancher:0, plancherEff:0, n:0, parNiveau:{}, masse:0, plancherMasse:0, nMasse:0 });
   }
   // Étages identiques : le 1er compte en entier, chaque étage en plus pour un pourcentage
+  // Dessin : le temps dépend surtout du niveau de finition, pas de la taille. Au-delà d'un seuil, chaque m² en plus compte très peu.
+  function m2DessinDegr(m2){
+    const p = state.params || {};
+    const s1 = p.dessin_seuil1 ?? 1500, c1 = (p.dessin_pct1 ?? 5) / 100, s2 = Math.max(s1, p.dessin_seuil2 ?? 5000), c2 = (p.dessin_pct2 ?? 0) / 100;
+    return Math.min(m2, s1) + Math.max(0, Math.min(m2, s2) - s1) * c1 + Math.max(0, m2 - s2) * c2;
+  }
   function plancherEffectif(emprise, etages){
     const r = ((state.params && state.params.etage_repete_pct) ?? 25) / 100;
     return emprise * (1 + r * Math.max(0, etages - 1));
@@ -1484,10 +1493,8 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
-    p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
-    p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
     p.deplacement_tranche = parseFloat(document.getElementById('param_deplacement_tranche').value) || 0;
     p.cloche_forfait = parseFloat(document.getElementById('param_cloche_forfait').value) || 0;
     p.cloche_tranche = parseFloat(document.getElementById('param_cloche_tranche').value) || 0;
@@ -1551,10 +1558,8 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','masse_m2','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_seuil1','dessin_pct1','dessin_seuil2','dessin_pct2','releve_m2_h','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
-    document.getElementById('param_releve_forfait').value = p.releve_forfait;
-    document.getElementById('param_releve_tranche').value = p.releve_tranche;
     document.getElementById('param_deplacement_tranche').value = p.deplacement_tranche;
     document.getElementById('param_cloche_forfait').value = p.cloche_forfait;
     document.getElementById('param_cloche_tranche').value = p.cloche_tranche;
@@ -1678,25 +1683,27 @@
     const m2Dessin   = effTotal * fDeg;
     const fFab       = plancher > 0 ? m2Dessin / plancher : 1;   // même réduction (étages identiques + dégressif) pour l'assemblage
     const m2Princ    = effPrinc * fDeg;                            // bâtiment principal, en m² comptés
+    const fDegD      = effTotal > 0 ? m2DessinDegr(effTotal) / effTotal : 1;   // dégressif propre au dessin
+    const m2D        = effTotal * fDegD;
     const niv        = nivDessin(state.projet.niveau);
     const fEch = Math.sqrt(50 / (ev || 50));   // plus l'échelle est grande (1:10), plus il y a de détails à dessiner
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
-      forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(m2Dessin,50) });
-      dessin.push({ label:`Plans 2D (mise au propre après relevé, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch * kExtDessin) });
+      dessin.push({ label:`Relevé sur place (${m2D.toFixed(0)} m² comptés)`, heures: arr1(Math.max(2, (p.releve_m2_h ?? 0.02) * m2D)) });
+      dessin.push({ label:`Plans 2D (mise au propre après relevé, ${m2D.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2D * fEch * kExtDessin) });
     } else if (state.projet.plans2d === 'papier'){
-      dessin.push({ label:`Plans 2D (redessin des plans papier, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch * kExtDessin) });
+      dessin.push({ label:`Plans 2D (redessin des plans papier, ${m2D.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2D * fEch * kExtDessin) });
     }
     const plancherPrinc = longueur * largeur * nbEtages;
-    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher, ${(effPrinc * fDeg).toFixed(0)} m² comptés)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * effPrinc * fDeg * kExtDessin) * fEch) });
+    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher, ${(effPrinc * fDegD).toFixed(0)} m² comptés)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * effPrinc * fDegD * kExtDessin) * fEch) });
     if (ANN.nMasse){
       const m2M = m2Degressifs(ANN.masse);   // même dégressif et même effet d'échelle que le reste du dessin
       dessin.push({ label:`Volumes alentour (masse, ${ANN.nMasse} bâtiment${ANN.nMasse > 1 ? 's' : ''}, ${ANN.masse.toFixed(0)} m² d'emprise, ${m2M.toFixed(0)} m² comptés)`, heures: arr1((p.masse_m2 ?? 0.01) * m2M * fEch) });
     }
     if (ANN.n > ANN.nMasse){
       const cle = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' };
-      const hAnn = Object.entries(ANN.parNiveau).reduce((h, [n, m2]) => h + p[cle[n] + '_m2'] * m2 * fDeg, 0);
-      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n - ANN.nMasse} bâtiment${ANN.n - ANN.nMasse > 1 ? 's' : ''}, ${(ANN.plancher - ANN.plancherMasse).toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDeg).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch * kExtDessin) });
+      const hAnn = Object.entries(ANN.parNiveau).reduce((h, [n, m2]) => h + p[cle[n] + '_m2'] * m2 * fDegD, 0);
+      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n - ANN.nMasse} bâtiment${ANN.n - ANN.nMasse > 1 ? 's' : ''}, ${(ANN.plancher - ANN.plancherMasse).toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDegD).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch * kExtDessin) });
     }
 
     // --- Impression 3D (temps machine + filament) ---
@@ -2967,6 +2974,9 @@
         const anciens = { dessin_brut_base:4, dessin_std_base:6, dessin_std_m2:0.1, dessin_det_base:8, dessin_det_m2:0.2, flocage:6, gravier:6.5, delai_fab:'4 à 6 semaines', cloche_forfait:400, cloche_tranche:100, cadre_forfait:400, cadre_tranche:100 };
         const neufs = defaultParams();
         Object.keys(anciens).forEach(k => { if (saved.params[k] === anciens[k] || saved.params[k] === undefined) saved.params[k] = neufs[k]; });
+        // Calibrage du dessin sur les heures réelles (Troyes, Sainte-Savine, Moët, 04/11/2026)
+        const anciens2 = { dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.1, plans_papier_m2:0.05 };
+        Object.keys(anciens2).forEach(k => { if (saved.params[k] === anciens2[k]) saved.params[k] = neufs[k]; });
         state.params = majParams(Object.assign(defaultParams(), saved.params));
       }
       if (saved.materiaux && Array.isArray(saved.materiaux)) state.materiaux = saved.materiaux;
@@ -3093,6 +3103,7 @@
     return [
       { cat:'dessin',     re:/^Modélisation 3D/,             cles:[n+'_base', n+'_m2'], nom:'Modélisation 3D' },
       { cat:'dessin',     re:/^Plans 2D/,                    cles:['plans_papier_m2'], nom:'Plans 2D' },
+      { cat:'dessin',     re:/^Relevé sur place/,            cles:['releve_m2_h'], nom:'Relevé sur place' },
       { cat:'decoupe',    re:/^Préparation impression/,      cles:['prep_impr_base','prep_impr_par_h'], nom:'Préparation impression' },
       { cat:'decoupe',    re:/^Travail du bois/,             cles:['bois_base_h','bois_par_m_h'], nom:'Travail du bois' },
       { cat:'assemblage', re:/^Assemblage maquette 3D/,      cles:['assemblage_base_h','assemblage_par_cm2'], nom:'Assemblage' },
