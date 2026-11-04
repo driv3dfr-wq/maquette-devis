@@ -473,6 +473,10 @@
 .choix-ctrl label{display:flex;gap:6px;align-items:center;cursor:pointer;}
 .choix{margin:16px 0 8px;}
 .choix h4{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px;}
+.annexe-row{display:grid;grid-template-columns:2fr 1fr 1fr 0.8fr auto;gap:6px;align-items:center;margin-bottom:6px;}
+.annexe-row input{width:100%;min-width:0;}
+.annexe-row button{padding:6px 10px;}
+@media (max-width:520px){.annexe-row{grid-template-columns:1fr 1fr 1fr auto;}.annexe-row .an-nom{grid-column:1/-1;}}
 .choix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;}
 @media (min-width:600px){.choix-grid.six{grid-template-columns:repeat(3,1fr);}}
 .choix-card{border:1px solid #d9d4c8;border-radius:8px;padding:12px;background:#fff;}
@@ -672,6 +676,11 @@
         <div class="field"><label for="d_largeur">Largeur du bâtiment</label><input type="number" id="d_largeur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
         <div class="field"><label for="d_hauteur">Hauteur sous plafond (par étage)</label><input type="number" id="d_hauteur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
         <div class="field"><label for="d_jardin">Surface de terrain / jardin</label><input type="number" id="d_jardin" min="0" step="1"><span class="unit">m², réel</span></div>
+      </div>
+      <div class="annexes">
+        <h4 style="margin:14px 0 6px;">Bâtiments annexes <span style="font-weight:400;color:var(--ink-soft);font-size:13px;">(chai, dépendances, garage…)</span></h4>
+        <div id="annexesList"></div>
+        <button type="button" class="btn" id="btnAddAnnexe" style="margin-top:6px;">+ Ajouter un bâtiment</button>
       </div>
       <div class="surface-box">
         <div class="item"><div class="l">Surface modèle bâtiment</div><div class="v" id="surfBatDisplay">0,00 m²</div></div>
@@ -1142,13 +1151,19 @@
       if (etages) lignes.push(`Étages : ${etages}${b0.pr.nombre_d_etages ? '' : ' (estimé d\'après la hauteur)'}`);
       if (!isNaN(terrain)) lignes.push(`Parcelle : ${Math.round(terrain)} m²${rectP ? ` (environ ${Math.round(rectP.l)} × ${Math.round(rectP.w)} m)` : ''}, soit ${Math.max(0, Math.round(terrain - emprise))} m² de jardin hors bâtiments`);
       else lignes.push('Parcelle introuvable : surface du jardin à saisir à la main');
-      if (choix.length > 1) lignes.push(`${choix.length - 1} autre(s) bâtiment(s) sur la parcelle (annexes, garage)`);
+      const annexes = choix.filter(b => b !== b0 && b.aire >= 10 && (!ringP.length || ringP.some(r => dedans(b.c, r)))).slice(0, 30).map((b, i) => {
+        const r = rectangleMin(b.pts);
+        const e = parseInt(b.pr.nombre_d_etages) || (b.pr.hauteur ? Math.max(1, Math.round(parseFloat(b.pr.hauteur) / 3)) : 1);
+        return { nom: (b.pr.usage_1 && b.pr.usage_1 !== 'Indifférencié' ? b.pr.usage_1 : 'Bâtiment') + ' ' + (i + 2), longueur: r.l.toFixed(1), largeur: r.w.toFixed(1), etages: String(e) };
+      });
+      if (annexes.length) lignes.push(`${annexes.length} bâtiment(s) annexe(s) sur la parcelle : ${Math.round(annexes.reduce((a, x) => a + x.longueur * x.largeur, 0))} m² d'emprise`);
       info.innerHTML = lignes.map(escapeHtml).join('<br>');
       if (!confirm('Trouvé pour ' + f.properties.label + ' :\n\n' + lignes.join('\n') + '\n\nRemplir le projet avec ces valeurs ? (à vérifier sur les plans)')) return;
       readFormIntoState();
       state.dimensions.longueur = rect.l.toFixed(1);
       state.dimensions.largeur = rect.w.toFixed(1);
       if (etages) state.projet.etages = String(etages);
+      state.dimensions.annexes = annexes;
       if (!isNaN(terrain)) state.dimensions.jardin = String(Math.max(0, Math.round(terrain - emprise)));
       writeStateIntoForm();
       info.innerHTML += '<br><strong>Valeurs reportées dans Dimensions, plus bas.</strong>';
@@ -1275,7 +1290,7 @@
     optionDefs.forEach(o => opts[o.key] = false);
     return {
       projet: { nom:'', client:'', adresse:'', email:'', telephone:'', numero_devis:'', date_devis:'', description:'', echelle:'50', echelleCustom:'', type:'Maison individuelle', etages:'', plans2d:'papier', deplacement:false, distance:'', heures_dessin2d:20, heures_dessin3d:30, niveau:'standard', ajust_dessin:0, impr_heures:'', impr_grammes:'' },
-      dimensions: { longueur:'', largeur:'', hauteur:'', jardin:'' },
+      dimensions: { longueur:'', largeur:'', hauteur:'', jardin:'', annexes:[] },
       options: opts,
       materiaux: JSON.parse(JSON.stringify(defaultMateriaux)),
       params: defaultParams()
@@ -1291,9 +1306,34 @@
   }
   function computeSurfaces(){
     const ev = getEchelleVal() || 1;
-    const Sbat = ((parseFloat(state.dimensions.longueur)||0) * (parseFloat(state.dimensions.largeur)||0)) / (ev*ev);
+    const Sbat = ((parseFloat(state.dimensions.longueur)||0) * (parseFloat(state.dimensions.largeur)||0) + annexesTotaux().emprise) / (ev*ev);
     const Sjardin = (parseFloat(state.dimensions.jardin)||0) / (ev*ev);
     return { Sbat, Sjardin, Sbase: Sbat + Sjardin };
+  }
+  // Bâtiments annexes : emprise (m²) et plancher (m² × étages), surfaces réelles
+  function annexesTotaux(){
+    const A = (state.dimensions && state.dimensions.annexes) || [];
+    return A.reduce((t, a) => {
+      const l = parseFloat(a.longueur) || 0, w = parseFloat(a.largeur) || 0, e = Math.max(1, parseInt(a.etages) || 1);
+      if (l > 0 && w > 0){ t.emprise += l * w; t.plancher += l * w * e; t.n++; }
+      return t;
+    }, { emprise:0, plancher:0, n:0 });
+  }
+  function renderAnnexes(){
+    const box = document.getElementById('annexesList'); if (!box) return;
+    if (!state.dimensions.annexes) state.dimensions.annexes = [];
+    const A = state.dimensions.annexes;
+    box.innerHTML = A.length ? '<div class="annexe-row" style="font-size:12px;color:var(--ink-soft);margin-bottom:2px;"><span class="an-nom">Nom</span><span>Longueur (m)</span><span>Largeur (m)</span><span>Étages</span><span style="width:34px"></span></div>' + A.map((a, i) => `<div class="annexe-row" data-i="${i}">
+        <input class="an-nom" data-k="nom" placeholder="Nom (ex. chai)" value="${escapeHtml(a.nom || '')}">
+        <input type="number" data-k="longueur" min="0" step="0.1" placeholder="Long. m" value="${a.longueur || ''}">
+        <input type="number" data-k="largeur" min="0" step="0.1" placeholder="Larg. m" value="${a.largeur || ''}">
+        <input type="number" data-k="etages" min="1" step="1" placeholder="Étages" value="${a.etages || 1}">
+        <button type="button" class="btn" data-del="${i}" title="Retirer">✕</button></div>`).join('')
+      : '<p style="font-size:13px;color:var(--ink-soft);margin:0;">Aucun. Le bouton adresse les ajoute s\'il en trouve sur la parcelle.</p>';
+    box.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+      A[+inp.closest('.annexe-row').dataset.i][inp.dataset.k] = inp.value; updateSurfaceDisplay();
+    }));
+    box.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { A.splice(+b.dataset.del, 1); renderAnnexes(); updateSurfaceDisplay(); }));
   }
   function tranche(surface, taille){ return Math.floor((surface||0) / taille); }
   function calcRemise(total){ const r = parseFloat(state.projet.remise) || 0; return Math.min(total, state.projet.remise_type === 'pct' ? total * r / 100 : r); }
@@ -1392,6 +1432,7 @@
   }
 
   function writeStateIntoForm(){
+    renderAnnexes();
     document.getElementById('p_nom').value = state.projet.nom;
     document.getElementById('p_client').value = state.projet.client;
     document.getElementById('p_adresse').value = state.projet.adresse||'';
@@ -1471,6 +1512,12 @@
     renderOptions();
   });
 
+  document.getElementById('btnAddAnnexe').addEventListener('click', () => {
+    if (!state.dimensions.annexes) state.dimensions.annexes = [];
+    state.dimensions.annexes.push({ nom:'', longueur:'', largeur:'', etages:'1' });
+    renderAnnexes();
+  });
+
   // ---------- Renderers ----------
   function renderOptions(){
     const grid = document.getElementById('optionGrid');
@@ -1539,7 +1586,8 @@
     // Surfaces réelles (non réduites à l'échelle) — pour relevé, mobilier, cloche, cadre
     const longueur = parseFloat(state.dimensions.longueur)||0;
     const largeur  = parseFloat(state.dimensions.largeur)||0;
-    const SbatReel    = longueur * largeur;
+    const ANN         = annexesTotaux();
+    const SbatReel    = longueur * largeur + ANN.emprise;
     const SjardinReel = parseFloat(state.dimensions.jardin)||0;
     const SbaseReel   = SbatReel + SjardinReel;
     const ev          = (()=>{ const e=state.projet.echelle; return e==="custom"?(parseFloat(state.projet.echelleCustom)||1):parseFloat(e); })();
@@ -1552,7 +1600,7 @@
 
     // --- Dessin (niveau de détail × surface de plancher réelle) ---
     const nbEtages   = Math.max(1, parseInt(state.projet.etages) || 1);
-    const plancher   = SbatReel * nbEtages;
+    const plancher   = longueur * largeur * nbEtages + ANN.plancher;
     const niv        = nivDessin(state.projet.niveau);
     const fEch = Math.sqrt(50 / (ev || 50));   // plus l'échelle est grande (1:10), plus il y a de détails à dessiner
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
@@ -1562,10 +1610,10 @@
     } else if (state.projet.plans2d === 'papier'){
       dessin.push({ label:'Plans 2D (redessin des plans papier)', heures: arr1(p.plans_papier_m2 * plancher * fEch) });
     }
-    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancher.toFixed(0)} m² de plancher)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
+    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancher.toFixed(0)} m² de plancher${ANN.n ? `, dont ${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''} annexe${ANN.n > 1 ? 's' : ''}` : ''})`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * plancher) * fEch) });
 
     // --- Impression 3D (temps machine + filament) ---
-    const surfImpr  = (longueur/ev*100) * (largeur/ev*100) * nbEtages;   // cm² de maquette à imprimer (emprise × étages)
+    const surfImpr  = ((longueur/ev*100) * (largeur/ev*100) * nbEtages) + ANN.plancher / (ev*ev) * 10000;   // cm² de maquette à imprimer (emprise × étages)
     // Pieds : 4 jusqu'à 1 m de maquette, +2 par mètre au-delà (Bati Tole, 1,35 m → 6 pieds)
     const coteMaq   = Math.max(longueur/ev, largeur/ev, Math.sqrt(Sbase || 0));
     const nbPieds   = 4 + 2 * Math.max(0, Math.ceil(coteMaq - 1));
@@ -1594,7 +1642,7 @@
     // --- Assemblage (dépend de la taille de la MAQUETTE) ---
     const SbatCm2Maq = Sbat * 10000;
     const SjarCm2Maq = Sjardin * 10000;
-    assemblage.push({ label:`Assemblage maquette 3D (${SbatCm2Maq.toFixed(0)} cm²)`, heures: arr1(p.assemblage_base_h + p.assemblage_par_cm2 * SbatCm2Maq * nbEtages) });
+    assemblage.push({ label:`Assemblage maquette 3D (${SbatCm2Maq.toFixed(0)} cm²)`, heures: arr1(p.assemblage_base_h + p.assemblage_par_cm2 * surfImpr) });
     if (o.jardin_amenage){
       assemblage.push({ label:'Jardin : tracé, scotch, colle, flocage, gravier', heures: arr1(p.jardin_base_h + p.jardin_par_cm2 * SjarCm2Maq) });
     }
@@ -1681,7 +1729,7 @@
              coutDessin, coutDecoupe, coutAssemblage, coutPeinture,
              coutForfaits, coutMateriaux, coutMO, charges, sousTotal,
              baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH, remise, totalAvantRemise, express,
-             emprise: { l: longueur/ev*100, w: largeur/ev*100, socle: Math.sqrt(Sbase||0)*100, jardin: SjardinReel > 0 } };
+             emprise: { l: longueur/ev*100, w: largeur/ev*100, socle: Math.sqrt(Sbase||0)*100, jardin: SjardinReel > 0 || ANN.n > 0 } };
   }
 
   // ---------- File import / export ----------
