@@ -410,6 +410,8 @@
   .pistes-liste{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
   .piste-carte{ background:#fff; border:1px solid #d9d4c8; border-radius:8px; padding:12px 14px; cursor:pointer; min-width:0; }
   .piste-carte:hover{ border-color:var(--blue); }
+  .piste-rapide{ display:flex; gap:8px; margin:0 0 10px; } .piste-rapide input{ flex:1; min-width:0; }
+  .piste-suppr{ background:none; border:none; cursor:pointer; font-size:15px; padding:0 2px; opacity:.55; } .piste-suppr:hover{ opacity:1; }
   .piste-tete{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; margin-bottom:4px; }
   .piste-tete .bord-statut{ white-space:nowrap; font-size:11px; }
   .piste-action{ font-size:13px; font-weight:600; color:var(--blue); margin-top:6px; } .piste-action.retard{ color:#a33; }
@@ -612,7 +614,8 @@
       <div class="lib-local-section active" id="bordStats"><div id="bordContainer"></div></div>
       <div class="lib-local-section" id="bordPistes">
         <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
-        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn primary" id="btnPisteAdd">＋ Nouvelle piste</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button></div>
+        <div class="piste-rapide"><input id="pisteRapide" placeholder="Ajout rapide : un nom, un e-mail ou un téléphone (ex. Jean Dupont jean@domaine.fr 06 12 34 56 78)" autocomplete="off"><button class="btn primary" id="btnPisteRapide">＋ Ajouter</button></div>
+        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
         <details class="strategie-box" id="strategieBox"><summary>📝 Stratégie de prospection</summary><textarea id="strategieTxt" rows="8" placeholder="Constat, cibles prioritaires, méthode, budget…"></textarea><div class="hint" style="font-size:12px;">Enregistré automatiquement.</div></details>
         <div id="pistesContainer"></div>
       </div>
@@ -3684,22 +3687,69 @@ document.addEventListener('wheel', function(e){
       }, 1500);
     }
   }
-  // Récupère le catalogue du Drive s'il est plus récent (une fois par ouverture de l'appli)
+  // Fusion de deux versions du catalogue (appareil / Drive), élément par élément :
+  // rien n'est perdu si deux appareils ont modifié des choses différentes.
+  function catTombe(id){ if (!id) return; catalogue.supprimes = catalogue.supprimes || {}; catalogue.supprimes[id] = new Date().toISOString(); }
+  function catFusion(a, b){
+    a = a || {}; b = b || {};
+    const recent = (a.maj || '') >= (b.maj || '') ? a : b, ancien = recent === a ? b : a;
+    const sup = Object.assign({}, ancien.supprimes || {}, recent.supprimes || {});
+    const limite = new Date(Date.now() - 180 * 864e5).toISOString();
+    Object.keys(sup).forEach(k => { if (sup[k] < limite) delete sup[k]; });
+    const heure = x => x.ts || x.maj || x.cree || '';
+    const fus = (LA, LB, depart) => {
+      LA = Array.isArray(LA) ? LA : []; LB = Array.isArray(LB) ? LB : [];
+      const noms = depart ? depart.map(p => (p.nom || '').toLowerCase()) : null;
+      const brut = x => noms && !x.maj && !x.ts && noms.includes((x.nom || '').toLowerCase());   // piste de départ jamais touchée
+      const map = new Map();
+      [[LA, LB], [LB, LA]].forEach(([L, autre]) => L.forEach(x => {
+        if (!x || !x.id || sup[x.id]) return;
+        // piste de départ que l'autre appareil a déjà retirée : on ne la fait pas revenir
+        if (brut(x) && autre.length && !autre.some(y => (y.nom || '').toLowerCase() === (x.nom || '').toLowerCase())) return;
+        const y = map.get(x.id);
+        if (!y || heure(x) > heure(y)) map.set(x.id, x);
+      }));
+      let out = [...map.values()];
+      if (noms) {   // même nom sur les deux appareils (import fait deux fois) : on garde la plus récente
+        const parNom = new Map();
+        out.forEach(x => { const k = (x.nom || '').toLowerCase(); const y = parNom.get(k); if (!y || heure(x) > heure(y)) parNom.set(k, x); });
+        out = [...parNom.values()];
+      }
+      return out;
+    };
+    const r = Object.assign({}, ancien, recent);
+    r.articles = fus(recent.articles, ancien.articles);
+    if (Array.isArray(a.pistes) || Array.isArray(b.pistes)) r.pistes = fus(recent.pistes, ancien.pistes, typeof PISTES_DEPART !== 'undefined' ? PISTES_DEPART : []);
+    r.strategie = recent.strategie || ancien.strategie || '';
+    r.supprimes = sup;
+    r.maj = recent.maj || ancien.maj || '';
+    return r;
+  }
+  const catSig = c => JSON.stringify([c.articles || [], c.pistes || [], c.strategie || '', c.supprimes || {}]);
+  // Lit le catalogue du Drive et le fusionne avec celui de l'appareil ; renvoie true si l'appareil a changé
   async function catDriveLire(force){
     if ((catDriveLu && !force) || !(getDriveUrl && getDriveUrl())) return false;
     catDriveLu = true;
     try {
       const r = await driveCall({ action:'catalogue_get' }); catDriveOk = true;
-      if (r.data) {
-        const d = JSON.parse(r.data);
-        if (d && Array.isArray(d.articles) && (d.maj || '') > (catalogue.maj || '')) {
-          catalogue = d; try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){}
-          return true;
-        }
-        if ((catalogue.maj || '') > (d.maj || '')) catSave();
-      } else if (catalogue.articles.length) catSave();
+      const d = r.data ? JSON.parse(r.data) : null;
+      if (!d || !Array.isArray(d.articles)) { if (catalogue.articles.length || (catalogue.pistes || []).length) catSave(); return false; }
+      const f = catFusion(catalogue, d);
+      const changeIci = catSig(f) !== catSig(catalogue), changeDrive = catSig(f) !== catSig(d);
+      catalogue = f;
+      if (changeDrive) catSave();
+      else if (changeIci) { try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){} }
+      return changeIci;
     } catch(e){ if (/Action inconnue/.test(e.message)) catDriveOk = false; }
     return false;
+  }
+  // Synchronisation manuelle (bouton) : envoie tout de suite et relit le Drive
+  async function catSynchroMaintenant(){
+    if (!(getDriveUrl && getDriveUrl())) { alert('Le Drive n\'est pas configuré sur cet appareil (⋯ Plus → Drive).'); return false; }
+    clearTimeout(catDriveTimer);
+    const ch = await catDriveLire(true);
+    try { await driveCall({ action:'catalogue_save', data: JSON.stringify(catalogue) }); catDriveOk = true; } catch(e){ alert('Synchronisation impossible : ' + e.message); return ch; }
+    return true;
   }
   function catSyncInfo(){
     const el = document.getElementById('catSyncInfo'); if (!el) return;
@@ -3780,6 +3830,7 @@ document.addEventListener('wheel', function(e){
         const nom = document.getElementById('cf_nom').value.trim(); if (!nom) { alert('Donne un nom à l\'article.'); return; }
         let a = catEdit === 'new' ? null : artById(catEdit);
         if (!a) { a = { id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), achats:[] }; catalogue.articles.push(a); }
+        a.ts = new Date().toISOString();
         Object.assign(a, { nom, cat: cat.value, dims: document.getElementById('cf_dims').value.trim(), cond: document.getElementById('cf_cond').value.trim(),
           qte: numFr(document.getElementById('cf_qte').value), unite: document.getElementById('cf_unite').value.trim(), prix: numFr(document.getElementById('cf_prix').value),
           fournisseur: document.getElementById('cf_four').value.trim(), ref: document.getElementById('cf_ref').value.trim(), lien: lienPropre(document.getElementById('cf_lien').value) });
@@ -3800,7 +3851,7 @@ document.addEventListener('wheel', function(e){
       document.getElementById('tf_ok').addEventListener('click', () => {
         const a = artById(catTicket); const nb = Math.max(1, Math.round(numFr(document.getElementById('tf_nb').value))), prix = numFr(document.getElementById('tf_prix').value);
         if (!(prix > 0)) { alert('Indique le prix payé.'); return; }
-        (a.achats = a.achats || []).push({ date: document.getElementById('tf_date').value || new Date().toISOString().slice(0, 10), nb, prix,
+        a.ts = new Date().toISOString(); (a.achats = a.achats || []).push({ date: document.getElementById('tf_date').value || new Date().toISOString().slice(0, 10), nb, prix,
           magasin: document.getElementById('tf_mag').value.trim(), note: document.getElementById('tf_note').value.trim() });
         a.prix = Math.round(prix / nb * 100) / 100;
         if (document.getElementById('tf_mag').value.trim()) a.fournisseur = document.getElementById('tf_mag').value.trim();
@@ -3812,7 +3863,7 @@ document.addEventListener('wheel', function(e){
     box.querySelectorAll('[data-tk]').forEach(b => b.addEventListener('click', () => { catTicket = b.dataset.tk; catEdit = null; renderCatalogue(); }));
     box.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
       const a = artById(b.dataset.dl); if (!a || !confirm(`Supprimer « ${a.nom} » du catalogue ?`)) return;
-      catalogue.articles = catalogue.articles.filter(x => x !== a); catSave(); renderCatalogue();
+      catalogue.articles = catalogue.articles.filter(x => x !== a); catTombe(a.id); catSave(); renderCatalogue();
     }));
   }
   // ---------- Lecture de photos (étiquette, capture d'écran, ticket) : OCR gratuit dans le navigateur ----------
@@ -4007,10 +4058,10 @@ document.addEventListener('wheel', function(e){
       s.achete = el.checked;
       if (el.checked) {
         s.paye = Math.round(estime * 100) / 100; s.date = new Date().toISOString().slice(0, 10);
-        if (a) { (a.achats = a.achats || []).push({ date: s.date, nb, prix: s.paye, magasin: a.fournisseur || '', projet: state.projet.nom || '', lien }); catSave(); }
+        if (a) { a.ts = new Date().toISOString(); (a.achats = a.achats || []).push({ date: s.date, nb, prix: s.paye, magasin: a.fournisseur || '', projet: state.projet.nom || '', lien }); catSave(); }
       } else {
         delete s.paye; delete s.date;
-        if (a && a.achats) { a.achats = a.achats.filter(t => t.lien !== lien); catSave(); }
+        if (a && a.achats) { a.ts = new Date().toISOString(); a.achats = a.achats.filter(t => t.lien !== lien); catSave(); }
       }
       sauver();
     }));
@@ -4054,7 +4105,7 @@ document.addEventListener('wheel', function(e){
   function pistes(){
     if (!Array.isArray(catalogue.pistes)) {
       catalogue.pistes = PISTES_DEPART.map((p, i) => Object.assign({ id:'pi' + Date.now().toString(36) + i, cree: new Date().toISOString().slice(0, 10) }, p));
-      catSave();
+      try { localStorage.setItem(CATALOGUE_KEY, JSON.stringify(catalogue)); } catch(e){}   // pas de date : le Drive garde la priorité
     }
     return catalogue.pistes;
   }
@@ -4062,7 +4113,7 @@ document.addEventListener('wheel', function(e){
     ['libraryView','catalogueView'].forEach(id => document.getElementById(id).classList.remove('active'));
     document.getElementById('bordView').classList.toggle('active', show);
     document.getElementById('wizardView').classList.toggle('hidden', show);
-    if (show) { window.scrollTo(0, 0); bordOnglet(onglet || 'bord'); catDriveLire(true).then(ch => { if (ch && document.getElementById('bordPistes').classList.contains('active')) renderPistes(); }); }
+    if (show) { window.scrollTo(0, 0); bordOnglet(onglet || 'bord'); pisteSyncInfo('Lecture du Drive…'); catDriveLire(true).then(ch => { if (ch && document.getElementById('bordPistes').classList.contains('active')) renderPistes(); pisteSyncInfo(); }); }
   }
   function bordOnglet(t){
     document.querySelectorAll('[data-bordtab]').forEach(b => b.classList.toggle('active', b.dataset.bordtab === t));
@@ -4100,7 +4151,7 @@ document.addEventListener('wheel', function(e){
     html += `<div class="bord-statuts" style="margin:0 0 14px;">${compte}${pisteFiltre ? ' <button class="btn" data-filtre="" style="padding:2px 10px;font-size:12px;">Tout afficher</button>' : ''}</div>`;
     html += L.length ? `<div class="pistes-liste">${L.map(p => { const s = statut(p.statut || 'contacter'); const retard = p.date && p.date < auj && !['gagne','perdu'].includes(p.statut);
       return `<div class="piste-carte" data-ed="${p.id}">
-        <div class="piste-tete"><strong>${escapeHtml(p.nom || 'Sans nom')}</strong><span class="bord-statut" style="border-color:${s[2]};color:${s[2]}">${s[1]}</span></div>
+        <div class="piste-tete"><strong>${escapeHtml(p.nom || 'Sans nom')}</strong><span style="display:flex;gap:6px;align-items:center;"><span class="bord-statut" style="border-color:${s[2]};color:${s[2]}">${s[1]}</span><button class="piste-suppr" data-sup="${p.id}" title="Supprimer cette piste">🗑</button></span></div>
         <div class="cat-hist">${escapeHtml(p.type || '')}${p.ville ? ' · ' + escapeHtml(p.ville) : ''}${p.contact ? ' · ' + escapeHtml(p.contact) : ''}</div>
         ${p.action || p.date ? `<div class="piste-action${retard ? ' retard' : ''}">➜ ${escapeHtml(p.action || 'À faire')}${p.date ? ' · ' + new Date(p.date).toLocaleDateString('fr-FR') : ''}${retard ? ' (en retard)' : ''}</div>` : ''}
         ${p.notes ? `<div class="piste-notes">${escapeHtml(p.notes)}</div>` : ''}
@@ -4108,22 +4159,63 @@ document.addEventListener('wheel', function(e){
       </div>`; }).join('')}</div>` : '<p class="hint">Aucune piste dans cette catégorie.</p>';
     box.innerHTML = html;
     box.querySelectorAll('[data-filtre]').forEach(b => b.addEventListener('click', () => { pisteFiltre = pisteFiltre === b.dataset.filtre ? '' : b.dataset.filtre; renderPistes(); }));
-    box.querySelectorAll('.piste-carte').forEach(c => c.addEventListener('click', e => { if (e.target.closest('a')) return; pisteEdit = c.dataset.ed; renderPistes(); }));
+    box.querySelectorAll('.piste-carte').forEach(c => c.addEventListener('click', e => { if (e.target.closest('a,[data-sup]')) return; pisteEdit = c.dataset.ed; renderPistes(); }));
+    box.querySelectorAll('[data-sup]').forEach(b => b.addEventListener('click', () => pisteSupprimer(b.dataset.sup)));
     const f = document.getElementById('pisteForm');
     if (f) {
       const g = id => document.getElementById(id).value.trim();
       document.getElementById('pf_annuler').addEventListener('click', () => { pisteEdit = null; renderPistes(); });
       const sup = document.getElementById('pf_suppr');
-      if (sup) sup.addEventListener('click', () => { if (!confirm('Supprimer cette piste ?')) return; catalogue.pistes = P.filter(p => p.id !== pisteEdit); pisteEdit = null; catSave(); renderPistes(); });
+      if (sup) sup.addEventListener('click', () => pisteSupprimer(pisteEdit));
       document.getElementById('pf_ok').addEventListener('click', () => {
         if (!g('pf_nom')) { alert('Donne un nom à la piste.'); return; }
         let p = pisteEdit === 'new' ? null : P.find(x => x.id === pisteEdit);
         if (!p) { p = { id:'pi' + Date.now().toString(36), cree: new Date().toISOString().slice(0, 10) }; P.push(p); }
-        Object.assign(p, { nom:g('pf_nom'), type:g('pf_type'), statut:g('pf_statut'), contact:g('pf_contact'), tel:g('pf_tel'), mail:g('pf_mail'), ville:g('pf_ville'), site:g('pf_site'), action:g('pf_action'), date:g('pf_date'), notes:document.getElementById('pf_notes').value.trim(), maj:new Date().toISOString().slice(0, 10) });
+        Object.assign(p, { nom:g('pf_nom'), type:g('pf_type'), statut:g('pf_statut'), contact:g('pf_contact'), tel:g('pf_tel'), mail:g('pf_mail'), ville:g('pf_ville'), site:g('pf_site'), action:g('pf_action'), date:g('pf_date'), notes:document.getElementById('pf_notes').value.trim(), maj:new Date().toISOString().slice(0, 10), ts:new Date().toISOString() });
         pisteEdit = null; catSave(); renderPistes();
       });
       f.scrollIntoView({ block:'nearest' });
     }
+  }
+  function pisteSupprimer(id){
+    const p = (catalogue.pistes || []).find(x => x.id === id); if (!p) return;
+    if (!confirm(`Supprimer la piste « ${p.nom || 'Sans nom'} » ?`)) return;
+    catalogue.pistes = catalogue.pistes.filter(x => x.id !== id); catTombe(id);
+    if (pisteEdit === id) pisteEdit = null; catSave(); renderPistes(); pisteSyncInfo();
+  }
+  // Ajout rapide : on colle un nom, un e-mail, un téléphone (ou tout ça d'un coup)
+  function pisteDepuisTexte(txt){
+    let t = String(txt || '').trim(); if (!t) return null;
+    const p = {};
+    const m = t.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/); if (m) { p.mail = m[0].toLowerCase(); t = t.replace(m[0], ' '); }
+    const tel = t.match(/(\+33\s?|0)[1-9]([\s.-]?\d{2}){4}/); if (tel) { p.tel = tel[0].trim(); t = t.replace(tel[0], ' '); }
+    const w = t.match(/(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.(fr|com|net|org|eu|io|bzh)(\/\S*)?/i); if (w) { p.site = w[0]; t = t.replace(w[0], ' '); }
+    t = t.replace(/[<>()\[\],;:|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const perso = /^(gmail|hotmail|outlook|live|yahoo|orange|free|sfr|wanadoo|laposte|icloud|bbox|neuf)\./i;
+    const dom = p.mail ? p.mail.split('@')[1] : '';
+    if (dom && !perso.test(dom) && !p.site) p.site = dom;
+    if (t) { p.nom = t; p.contact = t; }
+    else if (p.mail) { const loc = p.mail.split('@')[0], org = dom.split('.')[0];
+      p.nom = perso.test(dom) || /^(contact|info|accueil|bonjour|hello|commercial)$/.test(loc) ? (perso.test(dom) ? loc : org) : loc + ' (' + org + ')';
+      p.nom = p.nom.replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+    else if (p.tel) p.nom = 'Contact ' + p.tel;
+    else return null;
+    if (p.nom === p.contact && /\b(sarl|sas|domaine|champagne|château|chateau|mairie|immobilier|promotion|architecte|cabinet|atelier|maison|office)\b/i.test(p.nom)) delete p.contact;
+    return p;
+  }
+  function pisteAjoutRapide(){
+    const inp = document.getElementById('pisteRapide'); const p = pisteDepuisTexte(inp.value);
+    if (!p) { inp.focus(); return; }
+    const P = pistes();
+    if (p.mail && P.some(x => (x.mail || '').toLowerCase() === p.mail)) { alert('Une piste avec cet e-mail existe déjà.'); return; }
+    const n = Object.assign({ id:'pi' + Date.now().toString(36), cree:new Date().toISOString().slice(0, 10), type:'Autre', statut:'contacter',
+      maj:new Date().toISOString().slice(0, 10), ts:new Date().toISOString() }, p);
+    P.push(n); inp.value = ''; catSave();
+    pisteFiltre = ''; pisteEdit = n.id; renderPistes(); pisteSyncInfo();   // fiche ouverte pour compléter type, ville, action…
+  }
+  function pisteSyncInfo(txt){
+    const el = document.getElementById('pisteSyncInfo'); if (!el) return;
+    el.textContent = txt || (!(getDriveUrl && getDriveUrl()) ? '⚠ Drive non configuré sur cet appareil : pas de synchro.' : catDriveOk === false ? '⚠ Script Google à mettre à jour.' : catDriveOk ? '✓ Synchronisé avec le Drive' : '');
   }
   // Stratégie (texte libre) et import d'un fichier de pistes (JSON : { pistes:[…], strategie:'…', remplacer_depart:true })
   function renderStrategie(){ const t = document.getElementById('strategieTxt'); if (t && document.activeElement !== t) t.value = catalogue.strategie || ''; }
@@ -4134,9 +4226,9 @@ document.addEventListener('wheel', function(e){
       const f = inp.files && inp.files[0]; if (!f) return;
       try {
         const d = JSON.parse(await f.text()); const P = pistes(); let n = 0;
-        if (d.remplacer_depart) { const noms = PISTES_DEPART.map(p => p.nom); catalogue.pistes = P.filter(p => p.maj || !noms.includes(p.nom)); }
+        if (d.remplacer_depart) { const noms = PISTES_DEPART.map(p => p.nom); catalogue.pistes = P.filter(p => { const garde = p.maj || p.ts || !noms.includes(p.nom); if (!garde) catTombe(p.id); return garde; }); }
         (d.pistes || []).forEach((p, i) => { if (!p || !p.nom) return; if (catalogue.pistes.some(x => (x.nom || '').toLowerCase() === p.nom.toLowerCase())) return;
-          catalogue.pistes.push(Object.assign({ id:'pi' + Date.now().toString(36) + 'i' + i, cree:new Date().toISOString().slice(0, 10), statut:'contacter' }, p)); n++; });
+          catalogue.pistes.push(Object.assign({ id:'pi' + Date.now().toString(36) + 'i' + i, cree:new Date().toISOString().slice(0, 10), statut:'contacter' }, p, { ts:new Date().toISOString() })); n++; });
         if (d.strategie) { const st = catalogue.strategie || ''; if (!st.includes(d.strategie.slice(0, 40))) catalogue.strategie = st ? st + '\n\n' + d.strategie : d.strategie; }
         catSave(); bordOnglet('pistes'); alert(n + ' piste' + (n > 1 ? 's' : '') + ' ajoutée' + (n > 1 ? 's' : '') + (d.strategie ? ', stratégie mise à jour.' : '.'));
       } catch(e) { alert('Ce fichier ne contient pas de pistes lisibles.'); }
@@ -4146,6 +4238,11 @@ document.addEventListener('wheel', function(e){
   document.getElementById('btnBord').addEventListener('click', () => toggleBord(true));
   document.getElementById('btnBordBack').addEventListener('click', () => toggleBord(false));
   document.getElementById('btnPisteAdd').addEventListener('click', () => { bordOnglet('pistes'); pisteEdit = 'new'; renderPistes(); });
+  document.getElementById('btnPisteRapide').addEventListener('click', pisteAjoutRapide);
+  document.getElementById('pisteRapide').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pisteAjoutRapide(); } });
+  document.getElementById('btnPisteSync').addEventListener('click', async () => {
+    pisteSyncInfo('Synchronisation…'); const ok = await catSynchroMaintenant(); renderPistes(); pisteSyncInfo(ok === false && !(getDriveUrl && getDriveUrl()) ? '' : undefined);
+  });
   document.querySelectorAll('[data-bordtab]').forEach(b => b.addEventListener('click', () => bordOnglet(b.dataset.bordtab)));
   ['btnLibrary','btnNew','btnCatalogue'].forEach(id => document.getElementById(id).addEventListener('click', () => document.getElementById('bordView').classList.remove('active')));
 </script>
