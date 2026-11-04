@@ -833,6 +833,8 @@
         <div class="field"><label for="param_connectee_h_montage">Connecté — montage et essais</label><input type="number" id="param_connectee_h_montage" step="0.5"><span class="unit">h d'assemblage</span></div>
         <div class="field"><label for="param_connectee_mat">Connecté — module Wi-Fi, relais</label><input type="number" id="param_connectee_mat" step="1"><span class="unit">€ de matériel</span></div>
         <div class="field"><label for="param_express_pct">Supplément livraison express</label><input type="number" id="param_express_pct" step="5"><span class="unit">% du total</span></div>
+        <div class="field"><label for="param_ext_dessin_pct">Extérieur seul — réduction du dessin</label><input type="number" id="param_ext_dessin_pct" step="5"><span class="unit">% en moins (modélisation et plans)</span></div>
+        <div class="field"><label for="param_ext_impr_pct">Extérieur seul — réduction de l'impression</label><input type="number" id="param_ext_impr_pct" step="5"><span class="unit">% en moins (coque creuse)</span></div>
       </div>
 
       <h3>Mentions du devis</h3>
@@ -984,6 +986,7 @@
 <script>
   // ---------- Static reference data ----------
   const optionDefs = [
+    { key:'exterieur_seul',      label:'Extérieur seul (sans cloisons)', desc:"Façades et toiture uniquement, maquette creuse : pas de cloisons, de mobilier ni d'éclairage intérieur." },
     { key:'murs_ouvrages',       label:'Murs extérieurs ouvragés',     desc:"Texture détaillée, reliefs, jointoiement apparent." },
     { key:'jardin_amenage',      label:'Jardin aménagé',               desc:"Végétation, allées, aménagement du terrain." },
     { key:'eclairage_interieur', label:'Éclairage intérieur',          desc:"LED ou fibre optique pour les pièces." },
@@ -1272,7 +1275,7 @@
   function defaultParams(){
     return {
       taux_dessin:24, taux_decoupe:20, taux_assemblage:20, taux_peinture:20,
-      etage_repete_pct:25, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
+      etage_repete_pct:25, ext_dessin_pct:40, ext_impr_pct:50, degr_seuil1:300, degr_pct1:50, degr_seuil2:1000, degr_pct2:25,
       dessin_brut_base:2, dessin_brut_m2:0.05, dessin_std_base:4, dessin_std_m2:0.075, dessin_det_base:6, dessin_det_m2:0.10,
       plans_papier_m2:0.05,
       filament_kg:25, machine_h:1, pied_h_machine:2, stl_remplissage:0.48, stl_g_par_h:65,
@@ -1441,7 +1444,7 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1508,7 +1511,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['ext_dessin_pct','ext_impr_pct','etage_repete_pct','degr_seuil1','degr_pct1','degr_seuil2','degr_pct2','dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1548,7 +1551,8 @@
     grid.innerHTML = '';
     optionDefs.forEach(o => {
       const sansEclairage = !(state.options.eclairage_interieur || state.options.eclairage_exterieur);
-      const locked = (o.requiresJardin && !state.options.jardin_amenage) || (o.requiresEclairage && sansEclairage);
+      const horsExt = state.options.exterieur_seul && (o.key === 'eclairage_interieur' || o.key === 'mobilier');
+      const locked = (o.requiresJardin && !state.options.jardin_amenage) || (o.requiresEclairage && sansEclairage) || horsExt;
       if (locked) state.options[o.key] = false;
       const checked = !!state.options[o.key];
       const card = document.createElement('label');
@@ -1557,11 +1561,11 @@
         <input type="checkbox" id="opt_${o.key}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>
         <span>
           <span class="opt-title">${o.label}</span>
-          <span class="opt-desc">${o.desc}${locked ? (o.requiresEclairage ? ' Nécessite un éclairage intérieur ou extérieur.' : ' Nécessite l\u2019option Jardin aménagé.') : ''}</span>
+          <span class="opt-desc">${o.desc}${locked ? (horsExt ? ' Indisponible avec « Extérieur seul ».' : o.requiresEclairage ? ' Nécessite un éclairage intérieur ou extérieur.' : ' Nécessite l\u2019option Jardin aménagé.') : ''}</span>
         </span>`;
       card.querySelector('input').addEventListener('change', (e) => {
         state.options[o.key] = e.target.checked;
-        if (['jardin_amenage','eclairage_interieur','eclairage_exterieur'].includes(o.key)) renderOptions();
+        if (['jardin_amenage','eclairage_interieur','eclairage_exterieur','exterieur_seul'].includes(o.key)) renderOptions();
         else { card.classList.toggle('checked', e.target.checked); }
       });
       grid.appendChild(card);
@@ -1617,7 +1621,10 @@
     const ev          = (()=>{ const e=state.projet.echelle; return e==="custom"?(parseFloat(state.projet.echelleCustom)||1):parseFloat(e); })();
     // Périmètre du SOCLE de la maquette (m) : contour du bâtiment, ou du terrain carré équivalent s'il y a un jardin
     const perimetre   = Math.max(2 * (longueur + largeur) / ev, SjardinReel > 0 ? 4 * Math.sqrt(SbaseReel) / ev : 0);
-    const o = state.options, p = state.params;
+    const ext = !!state.options.exterieur_seul;
+    const o = ext ? Object.assign({}, state.options, { eclairage_interieur:false, mobilier:false }) : state.options, p = state.params;
+    const kExtDessin = ext ? 1 - (p.ext_dessin_pct ?? 40) / 100 : 1;   // façades et toiture seules
+    const kExtImpr   = ext ? 1 - (p.ext_impr_pct ?? 50) / 100 : 1;     // coque creuse
     const Ccond = o.jardin_amenage || o.eclairage_interieur || o.eclairage_exterieur;
 
     const dessin = [], decoupe = [], assemblage = [], peinture = [], forfaits = [];
@@ -1636,16 +1643,16 @@
     const NIV = { brut:['Brut','dessin_brut'], standard:['Standard','dessin_std'], detaille:['Détaillé','dessin_det'] }[niv] || ['Standard','dessin_std'];
     if (state.projet.plans2d === 'aucun'){
       forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(m2Dessin,50) });
-      dessin.push({ label:`Plans 2D (mise au propre après relevé, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch) });
+      dessin.push({ label:`Plans 2D (mise au propre après relevé, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch * kExtDessin) });
     } else if (state.projet.plans2d === 'papier'){
-      dessin.push({ label:`Plans 2D (redessin des plans papier, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch) });
+      dessin.push({ label:`Plans 2D (redessin des plans papier, ${m2Dessin.toFixed(0)} m² comptés)`, heures: arr1(p.plans_papier_m2 * m2Dessin * fEch * kExtDessin) });
     }
     const plancherPrinc = longueur * largeur * nbEtages;
-    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher, ${(effPrinc * fDeg).toFixed(0)} m² comptés)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * effPrinc * fDeg) * fEch) });
+    dessin.push({ label:`Modélisation 3D (niveau ${NIV[0]}, ${plancherPrinc.toFixed(0)} m² de plancher, ${(effPrinc * fDeg).toFixed(0)} m² comptés)`, heures: arr1((p[NIV[1]+'_base'] + p[NIV[1]+'_m2'] * effPrinc * fDeg * kExtDessin) * fEch) });
     if (ANN.n){
       const cle = { brut:'dessin_brut', standard:'dessin_std', detaille:'dessin_det' };
       const hAnn = Object.entries(ANN.parNiveau).reduce((h, [n, m2]) => h + p[cle[n] + '_m2'] * m2 * fDeg, 0);
-      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''}, ${ANN.plancher.toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDeg).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch) });
+      dessin.push({ label:`Modélisation 3D des annexes (${ANN.n} bâtiment${ANN.n > 1 ? 's' : ''}, ${ANN.plancher.toFixed(0)} m² de plancher, ${(ANN.plancherEff * fDeg).toFixed(0)} m² comptés)`, heures: arr1(hAnn * fEch * kExtDessin) });
     }
 
     // --- Impression 3D (temps machine + filament) ---
@@ -1655,8 +1662,8 @@
     const nbPieds   = 4 + 2 * Math.max(0, Math.ceil(coteMaq - 1));
     const hPieds    = arr1(nbPieds * p.pied_h_machine * Math.min(1, Math.max(0.3, coteMaq)));
     const gPieds    = Math.round(hPieds * p.stl_g_par_h);
-    const hImpr     = (parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2)) + hPieds;
-    const gImpr     = (parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2)) + gPieds;
+    const hImpr     = (parseFloat(state.projet.impr_heures)  || Math.round(surfImpr * p.impr_h_cm2 * kExtImpr)) + hPieds;
+    const gImpr     = (parseFloat(state.projet.impr_grammes) || Math.round(surfImpr * p.impr_g_cm2 * kExtImpr)) + gPieds;
     const estim     = !(parseFloat(state.projet.impr_heures) && parseFloat(state.projet.impr_grammes));
     decoupe.push({ label:'Préparation impression (STL, plateaux, surveillance, reprises)', heures: arr1(p.prep_impr_base + p.prep_impr_par_h * hImpr) });
     if (o.eclairage_interieur){
@@ -2096,6 +2103,7 @@
       const liste = FORMULES.map(f => {
         const d = simuler(st => {
           st.projet.niveau = f.niveau;
+          const extSeul = !!st.options.exterieur_seul;
           if (!f.toutes){   // maquette seule : sans option ni fournitures d'options
             Object.keys(st.options).forEach(k => st.options[k] = false);
             (st.materiaux || []).forEach(m => m.quantite = 0);
@@ -2106,6 +2114,7 @@
             st.options[k] = true;
           });
           if (f.expo){ st.options.cloche_plexi = true; st.options.cadre_metal = true; }
+          st.options.exterieur_seul = extSeul;
         });
         return { nom: f.nom, desc: f.desc, prix: prixClient(d), sub: f.expo ? 'Toutes options, cloche et cadre' : f.toutes ? 'Jardin, mobilier, éclairages' : 'Maquette seule' };
       });
