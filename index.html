@@ -406,6 +406,7 @@
   .ach-table tr.ach-ok td{ color:var(--ink-soft); }
   .ach-table tr.ach-ok td:first-child{ text-decoration:line-through; }
   .cat-hist{ font-size:12px; color:var(--ink-soft); }
+  .strategie-box{ background:#fff; border:1px solid #d9d4c8; border-radius:8px; padding:10px 14px; margin:0 0 14px; } .strategie-box summary{ cursor:pointer; font-weight:600; color:var(--blue); } .strategie-box textarea{ width:100%; margin-top:8px; font:13px/1.5 'IBM Plex Sans',sans-serif; }
   .pistes-liste{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
   .piste-carte{ background:#fff; border:1px solid #d9d4c8; border-radius:8px; padding:12px 14px; cursor:pointer; min-width:0; }
   .piste-carte:hover{ border-color:var(--blue); }
@@ -611,7 +612,8 @@
       <div class="lib-local-section active" id="bordStats"><div id="bordContainer"></div></div>
       <div class="lib-local-section" id="bordPistes">
         <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
-        <div style="margin:0 0 14px;"><button class="btn primary" id="btnPisteAdd">＋ Nouvelle piste</button></div>
+        <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn primary" id="btnPisteAdd">＋ Nouvelle piste</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button></div>
+        <details class="strategie-box" id="strategieBox"><summary>📝 Stratégie de prospection</summary><textarea id="strategieTxt" rows="8" placeholder="Constat, cibles prioritaires, méthode, budget…"></textarea><div class="hint" style="font-size:12px;">Enregistré automatiquement.</div></details>
         <div id="pistesContainer"></div>
       </div>
     </div>
@@ -4037,7 +4039,7 @@ document.addEventListener('wheel', function(e){
 </script>
 <script>
   // ================= Tableau de bord (bouton du haut) + Pistes de prospection =================
-  const TYPES_PISTE = ['Domaine viticole / Champagne','Promoteur immobilier','Constructeur de maisons','Architecte','Particulier','Collectivité / réseau','Autre'];
+  const TYPES_PISTE = ['Domaine viticole / Champagne','Promoteur immobilier','Constructeur de maisons','Architecte','Particulier','Mairie / tourisme / musée','Collectivité / réseau','Action de prospection','Autre'];
   const STATUTS_PISTE = [['idee','Idée','#7a7466'],['contacter','À contacter','#1B3A5C'],['contacte','Contacté','#2a7ab0'],['rdv','RDV / échange','#8a5cc2'],['devis','Devis envoyé','#c47a1a'],['gagne','Gagné','#2e7d4f'],['perdu','Perdu / pas intéressé','#a33']];
   const PISTES_DEPART = [
     { nom:'Domaines viticoles et maisons de Champagne', type:'Domaine viticole / Champagne', statut:'contacter', notes:'Maquettes très détaillées : chais, fûts, bouteilles, verdure. Aucun prix public chez les concurrents ; viser 3 500 à 8 000 € pour un domaine détaillé (étude concurrence).' },
@@ -4087,7 +4089,7 @@ document.addEventListener('wheel', function(e){
   }
   function renderPistes(){
     const box = document.getElementById('pistesContainer'); if (!box) return;
-    const P = pistes();
+    const P = pistes(); renderStrategie();
     const statut = id => STATUTS_PISTE.find(s => s[0] === id) || STATUTS_PISTE[1];
     const auj = new Date().toISOString().slice(0, 10);
     const compte = STATUTS_PISTE.map(s => { const n = P.filter(p => (p.statut || 'contacter') === s[0]).length;
@@ -4123,6 +4125,24 @@ document.addEventListener('wheel', function(e){
       f.scrollIntoView({ block:'nearest' });
     }
   }
+  // Stratégie (texte libre) et import d'un fichier de pistes (JSON : { pistes:[…], strategie:'…', remplacer_depart:true })
+  function renderStrategie(){ const t = document.getElementById('strategieTxt'); if (t && document.activeElement !== t) t.value = catalogue.strategie || ''; }
+  document.getElementById('strategieTxt').addEventListener('input', e => { catalogue.strategie = e.target.value; clearTimeout(window._stratT); window._stratT = setTimeout(catSave, 800); });
+  document.getElementById('btnPisteImport').addEventListener('click', () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try {
+        const d = JSON.parse(await f.text()); const P = pistes(); let n = 0;
+        if (d.remplacer_depart) { const noms = PISTES_DEPART.map(p => p.nom); catalogue.pistes = P.filter(p => p.maj || !noms.includes(p.nom)); }
+        (d.pistes || []).forEach((p, i) => { if (!p || !p.nom) return; if (catalogue.pistes.some(x => (x.nom || '').toLowerCase() === p.nom.toLowerCase())) return;
+          catalogue.pistes.push(Object.assign({ id:'pi' + Date.now().toString(36) + 'i' + i, cree:new Date().toISOString().slice(0, 10), statut:'contacter' }, p)); n++; });
+        if (d.strategie) { const st = catalogue.strategie || ''; if (!st.includes(d.strategie.slice(0, 40))) catalogue.strategie = st ? st + '\n\n' + d.strategie : d.strategie; }
+        catSave(); bordOnglet('pistes'); alert(n + ' piste' + (n > 1 ? 's' : '') + ' ajoutée' + (n > 1 ? 's' : '') + (d.strategie ? ', stratégie mise à jour.' : '.'));
+      } catch(e) { alert('Ce fichier ne contient pas de pistes lisibles.'); }
+    });
+    inp.click();
+  });
   document.getElementById('btnBord').addEventListener('click', () => toggleBord(true));
   document.getElementById('btnBordBack').addEventListener('click', () => toggleBord(false));
   document.getElementById('btnPisteAdd').addEventListener('click', () => { bordOnglet('pistes'); pisteEdit = 'new'; renderPistes(); });
