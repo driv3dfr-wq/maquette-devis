@@ -632,7 +632,9 @@
         <div class="field"><label for="p_date_devis">Date du devis</label><input type="date" id="p_date_devis"></div>
         <div class="field"><label for="p_statut">Statut</label><select id="p_statut"></select></div>
         <div class="field"><label for="p_client">Client</label><input type="text" id="p_client" placeholder="Ex. M. et Mme Moreau"></div>
-        <div class="field"><label for="p_adresse">Adresse client</label><input type="text" id="p_adresse" placeholder="Ex. 12 rue des Lilas, 75001 Paris"></div>
+        <div class="field"><label for="p_adresse">Adresse client</label><input type="text" id="p_adresse" placeholder="Ex. 12 rue des Lilas, 75001 Paris">
+          <button type="button" class="btn" id="btnAdresse" style="margin-top:6px;font-size:12px;padding:5px 10px;">📍 Remplir les dimensions depuis l'adresse (essai)</button>
+          <div id="adresseInfo" class="hint" style="margin-top:6px;"></div></div>
         <div class="field"><label for="p_email">E-mail client</label><input type="email" id="p_email" placeholder="contact@exemple.fr"></div>
         <div class="field"><label for="p_telephone">Téléphone client</label><input type="tel" id="p_telephone" placeholder="06 00 00 00 00"></div>
         <div class="field full"><label for="p_description">Description du projet</label><input type="text" id="p_description" placeholder="Ex. Maquette villa R+1 avec jardin paysager"></div>
@@ -1044,6 +1046,89 @@
     libLoad().forEach(e => { try { if (aRelancer(JSON.parse(e.data).projet)) n++; } catch(err){} });
     const b = document.getElementById('btnLibrary');
     if (b) b.innerHTML = '📁 Mes projets' + (n ? ` <span class="badge-relance">${n} à relancer</span>` : '');
+  }
+
+  // ---------- Pré-remplissage depuis l'adresse (Base Adresse Nationale, cadastre, BD TOPO de l'IGN) ----------
+  function mLocal(lat0){ const R = 6371000, k = Math.PI / 180; return ([lon, lat]) => [R * lon * k * Math.cos(lat0 * k), R * lat * k]; }
+  function anneauxDe(g){ if (!g) return []; if (g.type === 'Polygon') return [g.coordinates[0]]; if (g.type === 'MultiPolygon') return g.coordinates.map(p => p[0]); return []; }
+  function aire(pts){ let a = 0; for (let i = 0; i < pts.length; i++){ const [x1,y1] = pts[i], [x2,y2] = pts[(i+1) % pts.length]; a += x1*y2 - x2*y1; } return Math.abs(a) / 2; }
+  function centre(pts){ let x = 0, y = 0; pts.forEach(p => { x += p[0]; y += p[1]; }); return [x / pts.length, y / pts.length]; }
+  function dedans(pt, poly){ let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){ const [xi,yi] = poly[i], [xj,yj] = poly[j];
+    if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) c = !c; } return c; }
+  // Plus petit rectangle englobant (orienté) : longueur et largeur du bâtiment
+  function rectangleMin(pts){
+    let best = null;
+    for (let i = 0; i < pts.length; i++){
+      const [x1,y1] = pts[i], [x2,y2] = pts[(i+1) % pts.length];
+      const L = Math.hypot(x2-x1, y2-y1); if (L < 0.01) continue;
+      const ux = (x2-x1)/L, uy = (y2-y1)/L;
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      pts.forEach(([x,y]) => { const a = x*ux + y*uy, b = -x*uy + y*ux; a0 = Math.min(a0,a); a1 = Math.max(a1,a); b0 = Math.min(b0,b); b1 = Math.max(b1,b); });
+      const s2 = (a1-a0) * (b1-b0); if (!best || s2 < best.s) best = { s:s2, l:Math.max(a1-a0, b1-b0), w:Math.min(a1-a0, b1-b0) };
+    }
+    return best || { l:0, w:0 };
+  }
+  async function getJSON(url){ const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+  async function remplirDepuisAdresse(){
+    const info = document.getElementById('adresseInfo');
+    const q = document.getElementById('p_adresse').value.trim();
+    if (q.length < 5){ info.textContent = 'Saisis d\'abord l\'adresse complète (numéro, rue, ville).'; return; }
+    info.textContent = 'Recherche de l\'adresse…';
+    try {
+      // 1. Adresse → coordonnées
+      let geo;
+      try { geo = await getJSON('https://data.geopf.fr/geocodage/search?limit=1&q=' + encodeURIComponent(q)); }
+      catch(e){ geo = await getJSON('https://api-adresse.data.gouv.fr/search/?limit=1&q=' + encodeURIComponent(q)); }
+      const f = geo.features && geo.features[0];
+      if (!f){ info.textContent = 'Adresse introuvable.'; return; }
+      const [lon, lat] = f.geometry.coordinates, toM = mLocal(lat), P = toM([lon, lat]);
+      info.textContent = 'Adresse trouvée : ' + f.properties.label + '. Recherche de la parcelle et du bâtiment…';
+      // 2. Parcelle cadastrale
+      let parcelle = null;
+      try {
+        const pc = await getJSON('https://apicarto.ign.fr/api/cadastre/parcelle?geom=' + encodeURIComponent(JSON.stringify({ type:'Point', coordinates:[lon, lat] })));
+        parcelle = pc.features && pc.features[0];
+      } catch(e){}
+      const ringP = parcelle ? anneauxDe(parcelle.geometry).map(r => r.map(toM)) : [];
+      // 3. Bâtiments autour (BD TOPO)
+      const d = 0.0006;
+      const wfs = 'https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=100&BBOX='
+        + [lat-d, lon-d, lat+d, lon+d].join(',') + ',urn:ogc:def:crs:EPSG::4326';
+      const bt = await getJSON(wfs);
+      const bats = (bt.features || []).map(b => {
+        let rings = anneauxDe(b.geometry);
+        // Remet les coordonnées dans l'ordre longitude, latitude si besoin
+        if (rings[0] && rings[0][0] && Math.abs(rings[0][0][0] - lat) < Math.abs(rings[0][0][0] - lon)) rings = rings.map(r => r.map(([a,c]) => [c,a]));
+        const pts = rings.map(r => r.map(toM)), biggest = pts.sort((a,c) => aire(c) - aire(a))[0] || [];
+        const c = centre(biggest);
+        return { pr: b.properties || {}, pts: biggest, aire: pts.reduce((a,r) => a + aire(r), 0), c, dist: Math.hypot(c[0]-P[0], c[1]-P[1]) };
+      }).filter(b => b.pts.length > 2);
+      let choix = ringP.length ? bats.filter(b => ringP.some(r => dedans(b.c, r))) : [];
+      if (!choix.length) choix = bats.filter(b => b.dist < 30 || dedans(P, b.pts));
+      choix.sort((a,c) => c.aire - a.aire);
+      const b0 = choix[0];
+      if (!b0){ info.textContent = 'Adresse trouvée, mais aucun bâtiment repéré à cet endroit. Saisis les dimensions à la main.'; return; }
+      const rect = rectangleMin(b0.pts);
+      const emprise = choix.filter(b => !ringP.length || ringP.some(r => dedans(b.c, r))).reduce((a,b) => a + b.aire, 0);
+      const terrain = parcelle && parcelle.properties ? parseFloat(parcelle.properties.contenance) : NaN;
+      const etages = parseInt(b0.pr.nombre_d_etages) || (b0.pr.hauteur ? Math.max(1, Math.round(parseFloat(b0.pr.hauteur) / 3)) : 0);
+      const lignes = [`Bâtiment principal : ${rect.l.toFixed(1).replace(".", ",")} × ${rect.w.toFixed(1).replace(".", ",")} m (emprise ${Math.round(b0.aire)} m²)`];
+      if (b0.pr.hauteur) lignes.push(`Hauteur : ${parseFloat(b0.pr.hauteur).toFixed(1).replace(".", ",")} m`);
+      if (etages) lignes.push(`Étages : ${etages}${b0.pr.nombre_d_etages ? '' : ' (estimé d\'après la hauteur)'}`);
+      if (!isNaN(terrain)) lignes.push(`Parcelle : ${Math.round(terrain)} m², soit ${Math.max(0, Math.round(terrain - emprise))} m² hors bâtiments`);
+      if (choix.length > 1) lignes.push(`${choix.length - 1} autre(s) bâtiment(s) sur la parcelle (annexes, garage)`);
+      info.innerHTML = lignes.map(escapeHtml).join('<br>');
+      if (!confirm('Trouvé pour ' + f.properties.label + ' :\n\n' + lignes.join('\n') + '\n\nRemplir le projet avec ces valeurs ? (à vérifier sur les plans)')) return;
+      readFormIntoState();
+      state.dimensions.longueur = rect.l.toFixed(1);
+      state.dimensions.largeur = rect.w.toFixed(1);
+      if (etages) state.projet.etages = String(etages);
+      if (!isNaN(terrain)) state.dimensions.jardin = String(Math.max(0, Math.round(terrain - emprise)));
+      writeStateIntoForm();
+      info.innerHTML += '<br><strong>Valeurs reportées à l\'étape Dimensions.</strong>';
+    } catch(e){
+      info.textContent = 'Recherche impossible pour le moment (' + (e && e.message || e) + '). Vérifie la connexion internet.';
+    }
   }
 
   // ---------- Tableau de bord ----------
@@ -3119,6 +3204,8 @@
   // Init Drive button state
   updateDriveButton();
 
+
+  document.getElementById('btnAdresse').addEventListener('click', remplirDepuisAdresse);
 
   // ---------- Init ----------
   document.getElementById('p_statut').innerHTML = STATUTS.map(x => `<option value="${x[0]}">${x[1]}</option>`).join('');
