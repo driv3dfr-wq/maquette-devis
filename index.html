@@ -809,8 +809,14 @@
         </div>
       </div>
 
-      <h3>Options éclairage connecté et express</h3>
+      <h3>Éclairage, éclairage connecté et express</h3>
       <div class="field-grid">
+        <div class="field"><label for="param_elec_int_dessin_h">Élec. intérieure — dessin</label><input type="number" id="param_elec_int_dessin_h" step="0.5"><span class="unit">h (schéma, passages, découpes)</span></div>
+        <div class="field"><label for="param_elec_ext_dessin_h">Élec. extérieure — dessin</label><input type="number" id="param_elec_ext_dessin_h" step="0.5"><span class="unit">h</span></div>
+        <div class="field"><label for="param_elec_int_montage_base">Élec. intérieure — montage</label><input type="number" id="param_elec_int_montage_base" step="0.5"><span class="unit">h de base</span></div>
+        <div class="field"><label for="param_elec_int_montage_50">Élec. intérieure — montage en plus</label><input type="number" id="param_elec_int_montage_50" step="0.5"><span class="unit">h par tranche de 50 m² de bâtiment</span></div>
+        <div class="field"><label for="param_elec_ext_montage_base">Élec. extérieure — montage</label><input type="number" id="param_elec_ext_montage_base" step="0.5"><span class="unit">h de base</span></div>
+        <div class="field"><label for="param_elec_ext_montage_50">Élec. extérieure — montage en plus</label><input type="number" id="param_elec_ext_montage_50" step="0.5"><span class="unit">h par tranche de 50 m² de bâtiment</span></div>
         <div class="field"><label for="param_connectee_h_dessin">Connecté — programmation</label><input type="number" id="param_connectee_h_dessin" step="0.5"><span class="unit">h de dessin</span></div>
         <div class="field"><label for="param_connectee_h_montage">Connecté — montage et essais</label><input type="number" id="param_connectee_h_montage" step="0.5"><span class="unit">h d'assemblage</span></div>
         <div class="field"><label for="param_connectee_mat">Connecté — module Wi-Fi, relais</label><input type="number" id="param_connectee_mat" step="1"><span class="unit">€ de matériel</span></div>
@@ -1253,6 +1259,7 @@
       cloche_forfait:400, cloche_tranche:100,
       cadre_forfait:400, cadre_tranche:100,
       charges:25, marge:15, tva:0,
+      elec_int_dessin_h:5, elec_ext_dessin_h:2, elec_int_montage_base:6, elec_int_montage_50:1.5, elec_ext_montage_base:5, elec_ext_montage_50:1,
       connectee_h_dessin:3, connectee_h_montage:2, connectee_mat:30, express_pct:20,
       siret:'', nom_legal:'', adresse_atelier:'', validite_jours:30, acompte_pct:30, delai_fab:'4 à 6 semaines'
     };
@@ -1365,7 +1372,7 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1431,7 +1438,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','elec_int_dessin_h','elec_ext_dessin_h','elec_int_montage_base','elec_int_montage_50','elec_ext_montage_base','elec_ext_montage_50','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1552,12 +1559,10 @@
     const estim     = !(parseFloat(state.projet.impr_heures) && parseFloat(state.projet.impr_grammes));
     decoupe.push({ label:'Préparation impression (STL, plateaux, surveillance, reprises)', heures: arr1(p.prep_impr_base + p.prep_impr_par_h * hImpr) });
     if (o.eclairage_interieur){
-      dessin.push({ label:'Schéma élec. intérieur (circuit indépendant)', heures: 4 + 0.5*tranche(SbatReel,50) });
-      dessin.push({ label:'Dessin passage fils et logements dans les murs', heures: 3 + 1*tranche(SbatReel,50) });
+      dessin.push({ label:'Élec. intérieure : schéma, passages des fils et découpes dans les murs', heures: p.elec_int_dessin_h });
     }
     if (o.eclairage_exterieur){
-      dessin.push({ label:'Schéma élec. extérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
-      dessin.push({ label:'Dessin passage fils (extérieur)', heures: 1 + 0.5*tranche(SbatReel,50) });
+      dessin.push({ label:'Élec. extérieure : schéma et passages des fils', heures: p.elec_ext_dessin_h });
     }
     if (o.murs_ouvrages) dessin.push({ label:'Murs ouvragés', heures: 2 });
     if (o.mobilier) dessin.push({ label:'Dessin cuisine (mobilier)', heures: 5 });
@@ -1576,8 +1581,8 @@
     if (o.jardin_amenage){
       assemblage.push({ label:'Jardin : tracé, scotch, colle, flocage, gravier', heures: arr1(p.jardin_base_h + p.jardin_par_cm2 * SjarCm2Maq) });
     }
-    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 6 + 1.5*tranche(SbatReel,50) });
-    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 5 + 1*tranche(SbatReel,50) });
+    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: p.elec_int_montage_base + p.elec_int_montage_50 * tranche(SbatReel,50) });
+    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: p.elec_ext_montage_base + p.elec_ext_montage_50 * tranche(SbatReel,50) });
     if (o.connectee) assemblage.push({ label:'Montage et essais du module connecté', heures: p.connectee_h_montage });
 
     // --- Peinture / finition ---
