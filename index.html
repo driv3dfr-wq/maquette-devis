@@ -610,11 +610,10 @@
   <nav class="ruler" aria-label="Étapes du devis">
     <ol id="rulerList">
       <li data-step="1"><span class="tick"></span><span class="num">01</span><span class="label">Projet</span></li>
-      <li data-step="2"><span class="tick"></span><span class="num">02</span><span class="label">Dimensions</span></li>
-      <li data-step="3"><span class="tick"></span><span class="num">03</span><span class="label">Finitions</span></li>
-      <li data-step="4"><span class="tick"></span><span class="num">04</span><span class="label">Matériaux</span></li>
-      <li data-step="5"><span class="tick"></span><span class="num">05</span><span class="label">Paramètres</span></li>
-      <li data-step="6"><span class="tick"></span><span class="num">06</span><span class="label">Devis</span></li>
+      <li data-step="3"><span class="tick"></span><span class="num">02</span><span class="label">Finitions</span></li>
+      <li data-step="4"><span class="tick"></span><span class="num">03</span><span class="label">Matériaux</span></li>
+      <li data-step="5"><span class="tick"></span><span class="num">04</span><span class="label">Paramètres</span></li>
+      <li data-step="6"><span class="tick"></span><span class="num">05</span><span class="label">Devis</span></li>
     </ol>
   </nav>
 
@@ -665,6 +664,19 @@
         <div class="field"><label for="p_etages">Nombre d'étages</label><input type="number" id="p_etages" min="0" step="1" placeholder="Ex. 2"></div>
       </div>
 
+      <h3>Dimensions</h3>
+      <p class="hint">Dimensions réelles du bâtiment et du terrain (ou bouton 📍 sous l'adresse). La mise à l'échelle est appliquée automatiquement.</p>
+      <div class="field-grid">
+        <div class="field"><label for="d_longueur">Longueur du bâtiment</label><input type="number" id="d_longueur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
+        <div class="field"><label for="d_largeur">Largeur du bâtiment</label><input type="number" id="d_largeur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
+        <div class="field"><label for="d_hauteur">Hauteur sous plafond (par étage)</label><input type="number" id="d_hauteur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
+        <div class="field"><label for="d_jardin">Surface de terrain / jardin</label><input type="number" id="d_jardin" min="0" step="1"><span class="unit">m², réel</span></div>
+      </div>
+      <div class="surface-box">
+        <div class="item"><div class="l">Surface modèle bâtiment</div><div class="v" id="surfBatDisplay">0,00 m²</div></div>
+        <div class="item"><div class="l">Surface modèle jardin</div><div class="v" id="surfJardinDisplay">0,00 m²</div></div>
+        <div class="item"><div class="l">Surface modèle totale (base)</div><div class="v" id="surfBaseDisplay">0,00 m²</div></div>
+      </div>
       <h3>Plans &amp; relevés</h3>
       <div class="field-grid">
         <div class="field full">
@@ -732,18 +744,6 @@
     <!-- STEP 2 -->
     <section class="step" data-step="2">
       <h2>Dimensions</h2>
-      <p class="hint">Dimensions réelles du bâtiment et du terrain. La mise à l'échelle (étape précédente) est appliquée automatiquement.</p>
-      <div class="field-grid">
-        <div class="field"><label for="d_longueur">Longueur du bâtiment</label><input type="number" id="d_longueur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
-        <div class="field"><label for="d_largeur">Largeur du bâtiment</label><input type="number" id="d_largeur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
-        <div class="field"><label for="d_hauteur">Hauteur sous plafond (par étage)</label><input type="number" id="d_hauteur" min="0" step="0.1"><span class="unit">mètres, réel</span></div>
-        <div class="field"><label for="d_jardin">Surface de terrain / jardin</label><input type="number" id="d_jardin" min="0" step="1"><span class="unit">m², réel</span></div>
-      </div>
-      <div class="surface-box">
-        <div class="item"><div class="l">Surface modèle bâtiment</div><div class="v" id="surfBatDisplay">0,00 m²</div></div>
-        <div class="item"><div class="l">Surface modèle jardin</div><div class="v" id="surfJardinDisplay">0,00 m²</div></div>
-        <div class="item"><div class="l">Surface modèle totale (base)</div><div class="v" id="surfBaseDisplay">0,00 m²</div></div>
-      </div>
     </section>
 
     <!-- STEP 3 -->
@@ -937,7 +937,7 @@
 
   <footer class="controls">
     <button class="btn" id="btnPrev">← Précédent</button>
-    <span class="step-indicator">Étape <span id="curStep">1</span> / 6</span>
+    <span class="step-indicator">Étape <span id="curStep">1</span> / 5</span>
     <button class="btn primary" id="btnNext">Suivant →</button>
   </footer>
 
@@ -1089,7 +1089,7 @@
         const pc = await getJSON('https://apicarto.ign.fr/api/cadastre/parcelle?geom=' + encodeURIComponent(JSON.stringify({ type:'Point', coordinates:[lon, lat] })));
         parcelle = pc.features && pc.features[0];
       } catch(e){}
-      const ringP = parcelle ? anneauxDe(parcelle.geometry).map(r => r.map(toM)) : [];
+      let ringP = parcelle ? anneauxDe(parcelle.geometry).map(r => r.map(toM)) : [];
       // 3. Bâtiments autour (BD TOPO)
       const d = 0.0006;
       const wfs = 'https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=100&BBOX='
@@ -1108,14 +1108,31 @@
       choix.sort((a,c) => c.aire - a.aire);
       const b0 = choix[0];
       if (!b0){ info.textContent = 'Adresse trouvée, mais aucun bâtiment repéré à cet endroit. Saisis les dimensions à la main.'; return; }
+      // Parcelle introuvable au point de l'adresse (souvent posé sur le trottoir) : on cherche celle qui contient le bâtiment
+      if (!ringP.length){
+        try {
+          const wp = await getJSON('https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=50&BBOX='
+            + [lat-d, lon-d, lat+d, lon+d].join(',') + ',urn:ogc:def:crs:EPSG::4326');
+          for (const pf of (wp.features || [])){
+            let rings = anneauxDe(pf.geometry);
+            if (rings[0] && rings[0][0] && Math.abs(rings[0][0][0] - lat) < Math.abs(rings[0][0][0] - lon)) rings = rings.map(r => r.map(([a,c]) => [c,a]));
+            const rm = rings.map(r => r.map(toM));
+            if (rm.some(r => dedans(b0.c, r))){ parcelle = pf; ringP = rm; break; }
+          }
+        } catch(e){}
+        if (ringP.length){ choix = bats.filter(b => ringP.some(r => dedans(b.c, r))).sort((a,c) => c.aire - a.aire); if (!choix.length) choix = [b0]; }
+      }
       const rect = rectangleMin(b0.pts);
       const emprise = choix.filter(b => !ringP.length || ringP.some(r => dedans(b.c, r))).reduce((a,b) => a + b.aire, 0);
-      const terrain = parcelle && parcelle.properties ? parseFloat(parcelle.properties.contenance) : NaN;
+      let terrain = parcelle && parcelle.properties ? parseFloat(parcelle.properties.contenance) : NaN;
+      if (isNaN(terrain) && ringP.length) terrain = ringP.reduce((a,r) => a + aire(r), 0);
+      const rectP = ringP.length ? rectangleMin(ringP.slice().sort((a,c) => aire(c) - aire(a))[0]) : null;
       const etages = parseInt(b0.pr.nombre_d_etages) || (b0.pr.hauteur ? Math.max(1, Math.round(parseFloat(b0.pr.hauteur) / 3)) : 0);
       const lignes = [`Bâtiment principal : ${rect.l.toFixed(1).replace(".", ",")} × ${rect.w.toFixed(1).replace(".", ",")} m (emprise ${Math.round(b0.aire)} m²)`];
       if (b0.pr.hauteur) lignes.push(`Hauteur : ${parseFloat(b0.pr.hauteur).toFixed(1).replace(".", ",")} m`);
       if (etages) lignes.push(`Étages : ${etages}${b0.pr.nombre_d_etages ? '' : ' (estimé d\'après la hauteur)'}`);
-      if (!isNaN(terrain)) lignes.push(`Parcelle : ${Math.round(terrain)} m², soit ${Math.max(0, Math.round(terrain - emprise))} m² hors bâtiments`);
+      if (!isNaN(terrain)) lignes.push(`Parcelle : ${Math.round(terrain)} m²${rectP ? ` (environ ${Math.round(rectP.l)} × ${Math.round(rectP.w)} m)` : ''}, soit ${Math.max(0, Math.round(terrain - emprise))} m² de jardin hors bâtiments`);
+      else lignes.push('Parcelle introuvable : surface du jardin à saisir à la main');
       if (choix.length > 1) lignes.push(`${choix.length - 1} autre(s) bâtiment(s) sur la parcelle (annexes, garage)`);
       info.innerHTML = lignes.map(escapeHtml).join('<br>');
       if (!confirm('Trouvé pour ' + f.properties.label + ' :\n\n' + lignes.join('\n') + '\n\nRemplir le projet avec ces valeurs ? (à vérifier sur les plans)')) return;
@@ -1125,7 +1142,7 @@
       if (etages) state.projet.etages = String(etages);
       if (!isNaN(terrain)) state.dimensions.jardin = String(Math.max(0, Math.round(terrain - emprise)));
       writeStateIntoForm();
-      info.innerHTML += '<br><strong>Valeurs reportées à l\'étape Dimensions.</strong>';
+      info.innerHTML += '<br><strong>Valeurs reportées dans Dimensions, plus bas.</strong>';
     } catch(e){
       info.textContent = 'Recherche impossible pour le moment (' + (e && e.message || e) + '). Vérifie la connexion internet.';
     }
@@ -1270,16 +1287,17 @@
 
   // ---------- Navigation ----------
   function showStep(n){
+    if (n === 2) n = 3;   // ancienne étape Dimensions, désormais sur la page Projet
     document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', parseInt(s.dataset.step) === n));
     document.querySelectorAll('.ruler li').forEach(li => {
       const s = parseInt(li.dataset.step);
       li.classList.toggle('active', s === n);
       li.classList.toggle('done', s < n);
     });
-    document.getElementById('curStep').textContent = n;
+    document.getElementById('curStep').textContent = n > 2 ? n - 1 : n;
     document.getElementById('btnPrev').disabled = (n === 1);
     document.getElementById('btnNext').textContent = (n === totalSteps) ? 'Terminer' : 'Suivant →';
-    if (n === 2) updateSurfaceDisplay();
+    if (n === 1) updateSurfaceDisplay();
     if (n === 6){ renderClientView(); }
     currentStep = n;
   }
@@ -1819,7 +1837,8 @@
 
   // ---------- Wiring ----------
   document.getElementById('btnNext').addEventListener('click', () => { readFormIntoState(); if (currentStep < totalSteps) showStep(currentStep + 1); else exportProject(); });
-  document.getElementById('btnPrev').addEventListener('click', () => { readFormIntoState(); if (currentStep > 1) showStep(currentStep - 1); });
+  document.getElementById('btnPrev').addEventListener('click', () => { readFormIntoState(); if (currentStep > 1) showStep(currentStep === 3 ? 1 : currentStep - 1); });
+  ['d_longueur','d_largeur','d_jardin','p_echelle','p_echelle_custom'].forEach(id => document.getElementById(id).addEventListener('input', updateSurfaceDisplay));
   document.querySelectorAll('.ruler li').forEach(li => li.addEventListener('click', () => { readFormIntoState(); showStep(parseInt(li.dataset.step)); }));
 
   document.getElementById('p_echelle').addEventListener('change', (e) => {
