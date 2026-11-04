@@ -1112,47 +1112,47 @@
     // --- Dessin ---
     if (state.projet.plans2d === 'aucun'){
       forfaits.push({ label:'Relevé sur place', cost: p.releve_forfait + p.releve_tranche * tranche(SbatReel,50) });
-      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(Sbat,50) });
+      dessin.push({ label:'Plans 2D (mise au propre après relevé)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(SbatReel,50) });
     } else if (state.projet.plans2d === 'papier'){
-      dessin.push({ label:'Plans 2D (papier fourni)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(Sbat,50) });
+      dessin.push({ label:'Plans 2D (papier fourni)', heures: (state.projet.heures_dessin2d||20) + 2*tranche(SbatReel,50) });
     } else {
-      dessin.push({ label:'Plans 2D (numérique fourni)', heures: 2*tranche(Sbat,50) });
+      dessin.push({ label:'Plans 2D (numérique fourni)', heures: 2*tranche(SbatReel,50) });
     }
-    dessin.push({ label:'Plans 3D', heures: (state.projet.heures_dessin3d||30) + 10*tranche(Sbat,50) });
-    dessin.push({ label:'Préparation STL + plateau imprimante', heures: 2 + 2*tranche(Sbat,50) });
-    dessin.push({ label:'Redémarrage pièces ratées', heures: 1 + 1*tranche(Sbat,50) });
+    dessin.push({ label:'Plans 3D', heures: (state.projet.heures_dessin3d||30) + 10*tranche(SbatReel,50) });
+    dessin.push({ label:'Préparation STL + plateau imprimante', heures: 2 + 2*tranche(SbatReel,50) });
+    dessin.push({ label:'Redémarrage pièces ratées', heures: 1 + 1*tranche(SbatReel,50) });
     if (o.eclairage_interieur){
-      dessin.push({ label:'Schéma élec. intérieur', heures: 3 + 0.5*tranche(Sbat,50) });
-      dessin.push({ label:'Dessin passage fils (intérieur)', heures: 2 + 1*tranche(Sbat,50) });
+      dessin.push({ label:'Schéma élec. intérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
+      dessin.push({ label:'Dessin passage fils (intérieur)', heures: 2 + 1*tranche(SbatReel,50) });
     }
     if (o.eclairage_exterieur){
-      dessin.push({ label:'Schéma élec. extérieur', heures: 3 + 0.5*tranche(Sbat,50) });
-      dessin.push({ label:'Dessin passage fils (extérieur)', heures: 1 + 0.5*tranche(Sbat,50) });
+      dessin.push({ label:'Schéma élec. extérieur', heures: 3 + 0.5*tranche(SbatReel,50) });
+      dessin.push({ label:'Dessin passage fils (extérieur)', heures: 1 + 0.5*tranche(SbatReel,50) });
     }
     if (o.murs_ouvrages) dessin.push({ label:'Murs ouvragés', heures: 2 });
     if (o.mobilier) dessin.push({ label:'Dessin cuisine (mobilier)', heures: 5 });
 
     // --- Découpe ---
     if (Ccond){
-      decoupe.push({ label:'Découpe jupe', heures: 1 + 0.5*tranche(Sbase,50) });
-      decoupe.push({ label:'Impression supports jupe', heures: 1 + 0.5*tranche(Sbase,50) });
+      decoupe.push({ label:'Découpe jupe', heures: 1 + 0.5*tranche(SbaseReel,50) });
+      decoupe.push({ label:'Impression supports jupe', heures: 1 + 0.5*tranche(SbaseReel,50) });
     }
 
     // --- Assemblage ---
     if (Ccond) assemblage.push({ label:'Assemblage plateau + jupe', heures: 3 });
-    assemblage.push({ label:'Assemblage maquette 3D', heures: 6 + 0.5*tranche(Sbat,50) });
+    assemblage.push({ label:'Assemblage maquette 3D', heures: 6 + 0.5*tranche(SbatReel,50) });
     if (o.jardin_amenage){
-      assemblage.push({ label:'Assemblage jardin', heures: 2 + 1*tranche(Sjardin,50) });
-      assemblage.push({ label:'Gravillonnage allées', heures: 2 + 1*tranche(Sjardin,50) });
+      assemblage.push({ label:'Assemblage jardin', heures: 2 + 1*tranche(SjardinReel,50) });
+      assemblage.push({ label:'Gravillonnage allées', heures: 2 + 1*tranche(SjardinReel,50) });
     }
-    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 3 + 1*tranche(Sbat,50) });
-    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 2 + 0.5*tranche(Sbat,50) });
+    if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 3 + 1*tranche(SbatReel,50) });
+    if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 2 + 0.5*tranche(SbatReel,50) });
 
     // --- Peinture ---
     if (o.jardin_amenage){
       peinture.push({ label:'Peinture et colle diverses', heures: 1 });
       const hasPlantes = state.materiaux.some(m => /arbres|fleurs|plantes/i.test(m.nom) && (parseFloat(m.quantite)||0) > 0);
-      if (hasPlantes) peinture.push({ label:'Pose plantes et éléments', heures: 3 + 0.25*tranche(Sjardin,50) });
+      if (hasPlantes) peinture.push({ label:'Pose plantes et éléments', heures: 3 + 0.25*tranche(SjardinReel,50) });
     }
 
     // --- Forfaits directs ---
@@ -1550,10 +1550,11 @@
     const coutMOAssemblage  = sumH(assemblage)* tauxAssemblageC;
     const coutMOPeinture    = sumH(peinture)  * tauxPeintureC;
     const coutMOClient      = coutMODessin + coutMODecoupe + coutMOAssemblage + coutMOPeinture;
-    // Matériaux + forfaits : affichés au coût brut, charges et marge sur lignes séparées
-    const chargesClient     = (coutMateriaux + coutForfaits) * (p.charges/100);
-    const margeClient       = (coutMateriaux + coutForfaits + chargesClient) * (p.marge/100);
-    const totalHTClient     = coutMOClient + coutMateriaux + coutForfaits + chargesClient + margeClient;
+    // Matériaux + forfaits : charges et marge réparties dans les postes (le client ne voit pas de ligne « marge »)
+    const kMatForf          = (1 + p.charges/100) * (1 + p.marge/100);
+    const matClient         = coutMateriaux * kMatForf;
+    const forfClient        = coutForfaits  * kMatForf;
+    const totalHTClient     = coutMOClient + matClient + forfClient;
     const tvaClient         = totalHTClient * (p.tva/100);
     const totalTTCClient    = totalHTClient + tvaClient;
 
@@ -1563,14 +1564,12 @@
     }
 
     const breakdownHTML = `<table class="summary" style="margin-bottom:24px;">
-      ${coutMODessin     > 0 ? catRow('Conception &amp; dessin',       coutMODessin)    : ''}
-      ${coutMODecoupe    > 0 ? catRow('Découpe laser / numérique',     coutMODecoupe)   : ''}
-      ${coutMOAssemblage > 0 ? catRow('Assemblage',                    coutMOAssemblage): ''}
-      ${coutMOPeinture   > 0 ? catRow('Peinture &amp; finition',       coutMOPeinture)  : ''}
-      ${coutMateriaux    > 0 ? catRow('Matériaux',                     coutMateriaux)   : ''}
-      ${coutForfaits     > 0 ? catRow('Forfaits &amp; prestations',    coutForfaits)    : ''}
-      ${chargesClient    > 0 ? catRow(`Charges (${p.charges} % mat+forfaits)`,   chargesClient) : ''}
-      ${margeClient      > 0 ? catRow(`Marge (${p.marge} % sur mat+forfaits+charges)`, margeClient) : ''}
+      ${catRow('Conception &amp; dessin',       coutMODessin)}
+      ${catRow('Découpe laser / numérique',     coutMODecoupe)}
+      ${catRow('Assemblage',                    coutMOAssemblage)}
+      ${catRow('Peinture &amp; finition',       coutMOPeinture)}
+      ${catRow('Matériaux &amp; fournitures',   matClient)}
+      ${catRow('Prestations (impression 3D, socle, options…)', forfClient)}
     </table>`;
 
     const summaryHTML = (p.tva > 0)
@@ -1606,10 +1605,8 @@
       addBar('MO Découpe', coutMODecoupe);
       addBar('MO Assemblage', coutMOAssemblage);
       addBar('MO Peinture', coutMOPeinture);
-      addBar('Matériaux', coutMateriaux);
-      addBar('Forfaits', coutForfaits);
-      addBar('Charges', chargesClient);
-      addBar('Marge', margeClient);
+      addBar('Matériaux', matClient);
+      addBar('Prestations', forfClient);
       if (window._clientChart) { try { window._clientChart.destroy(); } catch(e){} }
       window._clientChart = new Chart(canvas, {
         type: 'bar',
