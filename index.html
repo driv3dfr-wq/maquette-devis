@@ -410,6 +410,16 @@
   .pistes-liste{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
   .piste-carte{ background:#fff; border:1px solid #d9d4c8; border-radius:8px; padding:12px 14px; cursor:pointer; min-width:0; }
   .piste-carte:hover{ border-color:var(--blue); }
+  .piste-carte.imp3{ border-left:5px solid #c47a1a; } .piste-carte.imp2{ border-left:5px solid #e3c48a; }
+  .piste-etoiles{ background:none; border:none; cursor:pointer; padding:0; font-size:15px; letter-spacing:1px; color:#c47a1a; white-space:nowrap; }
+  .piste-etoiles .off{ color:#d9d4c8; }
+  .memo-box{ background:#fffaf0; border:1px solid #e3c48a; border-radius:8px; padding:10px 14px; margin:0 0 14px; }
+  .memo-box summary{ cursor:pointer; font-weight:700; color:#8a5a10; }
+  .memo-box h4{ margin:14px 0 6px; font-size:14px; color:var(--blue); }
+  .memo-box label.memo-l{ display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.45; margin:3px 0; cursor:pointer; font-weight:400; color:var(--ink); }
+  .memo-box label.memo-l input{ margin-top:3px; flex:none; width:auto; }
+  .memo-box label.memo-l.sous{ margin-left:24px; }
+  .memo-box textarea{ width:100%; font:13px/1.5 'IBM Plex Sans',sans-serif; }
   .piste-rapide{ display:flex; gap:8px; margin:0 0 10px; } .piste-rapide input{ flex:1; min-width:0; }
   .piste-suppr{ background:none; border:none; cursor:pointer; font-size:15px; padding:0 2px; opacity:.55; } .piste-suppr:hover{ opacity:1; }
   .piste-tete{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; margin-bottom:4px; }
@@ -616,6 +626,7 @@
         <p class="hint" style="margin:0 0 10px;">Tes pistes de prospection. Touche une piste pour la modifier, note la prochaine action et sa date. Enregistrées sur l'appareil et sur le Drive, avec le catalogue d'achats.</p>
         <div class="piste-rapide"><input id="pisteRapide" placeholder="Ajout rapide : un nom, un e-mail ou un téléphone (ex. Jean Dupont jean@domaine.fr 06 12 34 56 78)" autocomplete="off"><button class="btn primary" id="btnPisteRapide">＋ Ajouter</button></div>
         <div style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn" id="btnPisteAdd">＋ Nouvelle piste (fiche complète)</button><button class="btn" id="btnPisteImport">📥 Importer des pistes (fichier)</button><button class="btn" id="btnPisteSync">🔄 Synchroniser</button><span class="hint" id="pisteSyncInfo" style="font-size:12px;margin:0;"></span></div>
+        <details class="memo-box" id="memoBox"><summary>📌 Mémo rendez-vous : à relire avant chaque RDV</summary><div id="memoContenu"></div></details>
         <details class="strategie-box" id="strategieBox"><summary>📝 Stratégie de prospection</summary><textarea id="strategieTxt" rows="8" placeholder="Constat, cibles prioritaires, méthode, budget…"></textarea><div class="hint" style="font-size:12px;">Enregistré automatiquement.</div></details>
         <div id="pistesContainer"></div>
       </div>
@@ -4126,6 +4137,7 @@ document.addEventListener('wheel', function(e){
     return `<div class="cat-art-form" id="pisteForm">
       <div style="grid-column:1/-1;"><label>Piste (entreprise, personne, idée)</label><input id="pf_nom" value="${v(p.nom)}" placeholder="ex. Domaine X, promoteur Y"></div>
       <div><label>Type</label><select id="pf_type">${TYPES_PISTE.map(t => `<option${t === p.type ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Importance</label><select id="pf_imp">${[[0,'Non classée'],[1,'★ Faible'],[2,'★★ Moyenne'],[3,'★★★ Prioritaire']].map(o => `<option value="${o[0]}"${o[0] === (+p.importance || 0) ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></div>
       <div><label>Statut</label><select id="pf_statut">${STATUTS_PISTE.map(s => `<option value="${s[0]}"${s[0] === (p.statut || 'contacter') ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></div>
       <div><label>Contact</label><input id="pf_contact" value="${v(p.contact)}" placeholder="nom, adresse"></div>
       <div><label>Téléphone</label><input id="pf_tel" type="tel" value="${v(p.tel)}"></div>
@@ -4140,18 +4152,20 @@ document.addEventListener('wheel', function(e){
   }
   function renderPistes(){
     const box = document.getElementById('pistesContainer'); if (!box) return;
-    const P = pistes(); renderStrategie();
+    const P = pistes(); renderStrategie(); if (!memoEdit) renderMemo();
     const statut = id => STATUTS_PISTE.find(s => s[0] === id) || STATUTS_PISTE[1];
     const auj = new Date().toISOString().slice(0, 10);
     const compte = STATUTS_PISTE.map(s => { const n = P.filter(p => (p.statut || 'contacter') === s[0]).length;
       return n ? `<button class="bord-statut" data-filtre="${s[0]}" style="border-color:${s[2]};color:${s[2]};cursor:pointer;${pisteFiltre === s[0] ? `background:${s[2]};color:#fff;` : ''}">${s[1]} : ${n}</button>` : ''; }).join('');
-    const L = P.filter(p => !pisteFiltre || (p.statut || 'contacter') === pisteFiltre)
-      .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.nom || '').localeCompare(b.nom || ''));
+    const L = P.filter(p => !pisteFiltre || (pisteFiltre === 'imp3' ? +p.importance === 3 : (p.statut || 'contacter') === pisteFiltre))
+      .sort((a, b) => (+b.importance || 0) - (+a.importance || 0) || (a.date || '9999').localeCompare(b.date || '9999') || (a.nom || '').localeCompare(b.nom || ''));
+    const nImp = P.filter(p => +p.importance === 3).length;
     let html = pisteEdit ? pisteFormHTML(pisteEdit === 'new' ? {} : (P.find(p => p.id === pisteEdit) || {})) : '';
-    html += `<div class="bord-statuts" style="margin:0 0 14px;">${compte}${pisteFiltre ? ' <button class="btn" data-filtre="" style="padding:2px 10px;font-size:12px;">Tout afficher</button>' : ''}</div>`;
+    html += `<div class="bord-statuts" style="margin:0 0 14px;">${nImp ? `<button class="bord-statut" data-filtre="imp3" style="border-color:#c47a1a;color:#c47a1a;cursor:pointer;${pisteFiltre === 'imp3' ? 'background:#c47a1a;color:#fff;' : ''}">★★★ Prioritaires : ${nImp}</button>` : ''}${compte}${pisteFiltre ? ' <button class="btn" data-filtre="" style="padding:2px 10px;font-size:12px;">Tout afficher</button>' : ''}</div>`;
     html += L.length ? `<div class="pistes-liste">${L.map(p => { const s = statut(p.statut || 'contacter'); const retard = p.date && p.date < auj && !['gagne','perdu'].includes(p.statut);
-      return `<div class="piste-carte" data-ed="${p.id}">
-        <div class="piste-tete"><strong>${escapeHtml(p.nom || 'Sans nom')}</strong><span style="display:flex;gap:6px;align-items:center;"><span class="bord-statut" style="border-color:${s[2]};color:${s[2]}">${s[1]}</span><button class="piste-suppr" data-sup="${p.id}" title="Supprimer cette piste">🗑</button></span></div>
+      const imp = +p.importance || 0;
+      return `<div class="piste-carte${imp >= 2 ? ' imp' + imp : ''}" data-ed="${p.id}">
+        <div class="piste-tete"><strong>${escapeHtml(p.nom || 'Sans nom')}</strong><span style="display:flex;gap:6px;align-items:center;"><button class="piste-etoiles" data-imp="${p.id}" title="Importance (toucher pour changer)">${[1,2,3].map(i => `<span class="${i <= imp ? '' : 'off'}">★</span>`).join('')}</button><span class="bord-statut" style="border-color:${s[2]};color:${s[2]}">${s[1]}</span><button class="piste-suppr" data-sup="${p.id}" title="Supprimer cette piste">🗑</button></span></div>
         <div class="cat-hist">${escapeHtml(p.type || '')}${p.ville ? ' · ' + escapeHtml(p.ville) : ''}${p.contact ? ' · ' + escapeHtml(p.contact) : ''}</div>
         ${p.action || p.date ? `<div class="piste-action${retard ? ' retard' : ''}">➜ ${escapeHtml(p.action || 'À faire')}${p.date ? ' · ' + new Date(p.date).toLocaleDateString('fr-FR') : ''}${retard ? ' (en retard)' : ''}</div>` : ''}
         ${p.notes ? `<div class="piste-notes">${escapeHtml(p.notes)}</div>` : ''}
@@ -4159,8 +4173,10 @@ document.addEventListener('wheel', function(e){
       </div>`; }).join('')}</div>` : '<p class="hint">Aucune piste dans cette catégorie.</p>';
     box.innerHTML = html;
     box.querySelectorAll('[data-filtre]').forEach(b => b.addEventListener('click', () => { pisteFiltre = pisteFiltre === b.dataset.filtre ? '' : b.dataset.filtre; renderPistes(); }));
-    box.querySelectorAll('.piste-carte').forEach(c => c.addEventListener('click', e => { if (e.target.closest('a,[data-sup]')) return; pisteEdit = c.dataset.ed; renderPistes(); }));
+    box.querySelectorAll('.piste-carte').forEach(c => c.addEventListener('click', e => { if (e.target.closest('a,[data-sup],[data-imp]')) return; pisteEdit = c.dataset.ed; renderPistes(); }));
     box.querySelectorAll('[data-sup]').forEach(b => b.addEventListener('click', () => pisteSupprimer(b.dataset.sup)));
+    box.querySelectorAll('[data-imp]').forEach(b => b.addEventListener('click', () => { const p = P.find(x => x.id === b.dataset.imp); if (!p) return;
+      p.importance = ((+p.importance || 0) + 1) % 4; p.ts = new Date().toISOString(); p.maj = p.ts.slice(0, 10); catSave(); renderPistes(); }));
     const f = document.getElementById('pisteForm');
     if (f) {
       const g = id => document.getElementById(id).value.trim();
@@ -4171,7 +4187,7 @@ document.addEventListener('wheel', function(e){
         if (!g('pf_nom')) { alert('Donne un nom à la piste.'); return; }
         let p = pisteEdit === 'new' ? null : P.find(x => x.id === pisteEdit);
         if (!p) { p = { id:'pi' + Date.now().toString(36), cree: new Date().toISOString().slice(0, 10) }; P.push(p); }
-        Object.assign(p, { nom:g('pf_nom'), type:g('pf_type'), statut:g('pf_statut'), contact:g('pf_contact'), tel:g('pf_tel'), mail:g('pf_mail'), ville:g('pf_ville'), site:g('pf_site'), action:g('pf_action'), date:g('pf_date'), notes:document.getElementById('pf_notes').value.trim(), maj:new Date().toISOString().slice(0, 10), ts:new Date().toISOString() });
+        Object.assign(p, { nom:g('pf_nom'), type:g('pf_type'), statut:g('pf_statut'), contact:g('pf_contact'), tel:g('pf_tel'), mail:g('pf_mail'), ville:g('pf_ville'), site:g('pf_site'), action:g('pf_action'), date:g('pf_date'), notes:document.getElementById('pf_notes').value.trim(), importance:+g('pf_imp') || 0, maj:new Date().toISOString().slice(0, 10), ts:new Date().toISOString() });
         pisteEdit = null; catSave(); renderPistes();
       });
       f.scrollIntoView({ block:'nearest' });
@@ -4217,6 +4233,32 @@ document.addEventListener('wheel', function(e){
     const el = document.getElementById('pisteSyncInfo'); if (!el) return;
     el.textContent = txt || (!(getDriveUrl && getDriveUrl()) ? '⚠ Drive non configuré sur cet appareil : pas de synchro.' : catDriveOk === false ? '⚠ Script Google à mettre à jour.' : catDriveOk ? '✓ Synchronisé avec le Drive' : '');
   }
+  const MEMO_RDV = "## Avant le rendez-vous\n- Relire la fiche de la piste : qui, quel projet, ce qui a déjà été dit\n- Regarder leur site, leurs réseaux et leurs bâtiments (Google Maps, Street View)\n- Préparer 2 ou 3 réalisations proches de leur métier (photos, vidéo timelapse)\n- Faire une simulation de prix dans l'appli pour avoir une fourchette en tête\n- Emporter : échantillon imprimé, flyers, cartes, téléphone chargé avec le portfolio, carnet\n- Arriver 5 minutes en avance\n## Pendant : les sujets dans l'ordre\n- 1. Se présenter en une minute : qui je suis, ce que je fais, pourquoi une maquette\n- 2. Les faire parler : leur projet, à quoi servira la maquette (vente, salon, accueil, cadeau, concours), qui la verra\n- 3. Montrer l'échantillon et 2 ou 3 réalisations proches, laisser toucher\n- 4. Le besoin précis :\n  - Bâtiment(s) : surface, nombre de niveaux, annexes, terrain\n  - Plans disponibles : DWG, PDF, maquette 3D, photos, ou relevé sur place à prévoir\n  - Échelle et taille maximale : où sera-t-elle posée, faut-il la transporter ?\n  - Finition : Brut, Standard, Détaillé, Paysagé ou Tout compris\n  - Options : jardin, mobilier, éclairages, cloche, cadre métal, intérieur visible\n  - Délai : date de l'événement ou de livraison souhaitée\n  - Budget envisagé (demander une fourchette)\n  - Qui décide et qui paie : une personne ou un comité ?\n- 5. Reformuler ce que j'ai compris et le faire valider\n- 6. Donner une fourchette de prix et ce qui la fait varier (pas de prix ferme sans plans)\n- 7. Fixer la suite : envoi des plans, date d'envoi du devis, date de relance\n## À ne pas oublier\n- Conditions : acompte à la commande, délai de paiement\n- Livraison et installation : qui transporte, déplacement facturé ou non\n- Pas de TVA (auto-entrepreneur) : le prix annoncé est le prix final\n- Autorisation de photographier et filmer la maquette pour le site et les réseaux\n- Demander s'ils connaissent d'autres personnes intéressées\n- Laisser flyer et carte de visite\n## Attitude\n- Écouter plus que parler\n- Ne pas brader : proposer une version plus simple plutôt que baisser le prix\n- Ne pas critiquer les concurrents\n- Prendre des notes pendant le rendez-vous\n## Juste après\n- Remplir la fiche de la piste : statut, notes, prochaine action et date\n- Envoyer un mail de remerciement avec le récapitulatif le jour même\n- Envoyer le devis sous 48 h (bouton PDF), relancer à J+7 sans réponse";
+  let memoEdit = false;
+  function renderMemo(){
+    const box = document.getElementById('memoContenu'); if (!box) return;
+    const txt = catalogue.memoRdv || MEMO_RDV;
+    if (memoEdit) {
+      box.innerHTML = `<p class="hint" style="font-size:12px;">« ## » pour un titre, « - » pour une case à cocher, deux espaces avant « - » pour un sous-point.</p><textarea id="memoTxt" rows="22">${escapeHtml(txt)}</textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button class="btn" id="memoDefaut" style="margin-right:auto;">Remettre le mémo d'origine</button><button class="btn" id="memoAnnul">Annuler</button><button class="btn primary" id="memoOk">Enregistrer</button></div>`;
+      document.getElementById('memoOk').onclick = () => { const v = document.getElementById('memoTxt').value.trim(); catalogue.memoRdv = v && v !== MEMO_RDV ? v : ''; memoEdit = false; catSave(); renderMemo(); };
+      document.getElementById('memoAnnul').onclick = () => { memoEdit = false; renderMemo(); };
+      document.getElementById('memoDefaut').onclick = () => { if (confirm('Remettre le mémo d\'origine ?')) document.getElementById('memoTxt').value = MEMO_RDV; };
+      return;
+    }
+    let html = '';
+    txt.split('\n').forEach(l => {
+      const t = l.trim(); if (!t) return;
+      if (t.startsWith('##')) html += `<h4>${escapeHtml(t.replace(/^#+\s*/, ''))}</h4>`;
+      else if (/^[-•\d]/.test(t)) html += `<label class="memo-l${/^\s{2,}/.test(l) ? ' sous' : ''}"><input type="checkbox"><span>${escapeHtml(t.replace(/^(-|•)\s*/, ''))}</span></label>`;
+      else html += `<p style="font-size:13px;margin:4px 0;">${escapeHtml(t)}</p>`;
+    });
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="btn" id="memoRaz">☐ Tout décocher</button><button class="btn" id="memoModif">✏ Modifier le mémo</button></div>
+      <p class="hint" style="font-size:12px;margin:6px 0 0;">Les cases servent pendant le RDV, elles ne sont pas enregistrées.</p>`;
+    box.innerHTML = html;
+    document.getElementById('memoRaz').onclick = () => box.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+    document.getElementById('memoModif').onclick = () => { memoEdit = true; renderMemo(); };
+  }
   // Stratégie (texte libre) et import d'un fichier de pistes (JSON : { pistes:[…], strategie:'…', remplacer_depart:true })
   function renderStrategie(){ const t = document.getElementById('strategieTxt'); if (t && document.activeElement !== t) t.value = catalogue.strategie || ''; }
   document.getElementById('strategieTxt').addEventListener('input', e => { catalogue.strategie = e.target.value; clearTimeout(window._stratT); window._stratT = setTimeout(catSave, 800); });
@@ -4225,12 +4267,15 @@ document.addEventListener('wheel', function(e){
     inp.addEventListener('change', async () => {
       const f = inp.files && inp.files[0]; if (!f) return;
       try {
-        const d = JSON.parse(await f.text()); const P = pistes(); let n = 0;
+        const d = JSON.parse(await f.text()); const P = pistes(); let n = 0, nMaj = 0;
         if (d.remplacer_depart) { const noms = PISTES_DEPART.map(p => p.nom); catalogue.pistes = P.filter(p => { const garde = p.maj || p.ts || !noms.includes(p.nom); if (!garde) catTombe(p.id); return garde; }); }
-        (d.pistes || []).forEach((p, i) => { if (!p || !p.nom) return; if (catalogue.pistes.some(x => (x.nom || '').toLowerCase() === p.nom.toLowerCase())) return;
+        (d.pistes || []).forEach((p, i) => { if (!p || !p.nom) return;
+          const ex = catalogue.pistes.find(x => (x.nom || '').toLowerCase() === p.nom.toLowerCase());
+          if (ex) { let ch = false; Object.keys(p).forEach(k => { if (k !== 'id' && (ex[k] === undefined || ex[k] === '' || (k === 'importance' && !+ex[k])) && p[k] !== '' && p[k] != null) { ex[k] = p[k]; ch = true; } });
+            if (ch) { ex.ts = new Date().toISOString(); nMaj++; } return; }
           catalogue.pistes.push(Object.assign({ id:'pi' + Date.now().toString(36) + 'i' + i, cree:new Date().toISOString().slice(0, 10), statut:'contacter' }, p, { ts:new Date().toISOString() })); n++; });
         if (d.strategie) { const st = catalogue.strategie || ''; if (!st.includes(d.strategie.slice(0, 40))) catalogue.strategie = st ? st + '\n\n' + d.strategie : d.strategie; }
-        catSave(); bordOnglet('pistes'); alert(n + ' piste' + (n > 1 ? 's' : '') + ' ajoutée' + (n > 1 ? 's' : '') + (d.strategie ? ', stratégie mise à jour.' : '.'));
+        catSave(); bordOnglet('pistes'); alert(n + ' piste' + (n > 1 ? 's' : '') + ' ajoutée' + (n > 1 ? 's' : '') + (nMaj ? ', ' + nMaj + ' complétée' + (nMaj > 1 ? 's' : '') : '') + (d.strategie ? ', stratégie mise à jour.' : '.'));
       } catch(e) { alert('Ce fichier ne contient pas de pistes lisibles.'); }
     });
     inp.click();
