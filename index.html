@@ -795,6 +795,14 @@
         </div>
       </div>
 
+      <h3>Options éclairage connecté et express</h3>
+      <div class="field-grid">
+        <div class="field"><label for="param_connectee_h_dessin">Connecté — programmation</label><input type="number" id="param_connectee_h_dessin" step="0.5"><span class="unit">h de dessin</span></div>
+        <div class="field"><label for="param_connectee_h_montage">Connecté — montage et essais</label><input type="number" id="param_connectee_h_montage" step="0.5"><span class="unit">h d'assemblage</span></div>
+        <div class="field"><label for="param_connectee_mat">Connecté — module Wi-Fi, relais</label><input type="number" id="param_connectee_mat" step="1"><span class="unit">€ de matériel</span></div>
+        <div class="field"><label for="param_express_pct">Supplément livraison express</label><input type="number" id="param_express_pct" step="5"><span class="unit">% du total</span></div>
+      </div>
+
       <h3>Mentions du devis</h3>
       <div class="field-grid">
         <div class="field"><label for="param_nom_legal">Nom de l'entreprise</label><input type="text" id="param_nom_legal" placeholder="Ex. Prénom Nom EI — D-RIV3D Création"><span class="unit">obligatoire sur les factures</span></div>
@@ -946,6 +954,8 @@
     { key:'mobilier',            label:'Mobilier miniature',           desc:"Ameublement intérieur et/ou extérieur, impression résine." },
     { key:'cloche_plexi',        label:'Cloche de protection plexi',   desc:"Habillage plexiglas pour la présentation.", requiresJardin:true },
     { key:'cadre_metal',         label:'Cadre / socle métal',          desc:"Support et encadrement de présentation.", requiresJardin:true },
+    { key:'connectee',           label:'Éclairage connecté',           desc:"Lumières pilotées depuis le téléphone (module Wi-Fi), scénarios jour / nuit.", requiresEclairage:true },
+    { key:'express',             label:'Livraison express',            desc:"Fabrication prioritaire dans le planning de l'atelier (supplément sur le total)." },
   ];
 
   const defaultMateriaux = [
@@ -1076,6 +1086,7 @@
       cloche_forfait:400, cloche_tranche:100,
       cadre_forfait:400, cadre_tranche:100,
       charges:25, marge:15, tva:0,
+      connectee_h_dessin:3, connectee_h_montage:2, connectee_mat:30, express_pct:20,
       siret:'', nom_legal:'', adresse_atelier:'', validite_jours:30, acompte_pct:30, delai_fab:'4 à 6 semaines'
     };
   }
@@ -1186,7 +1197,7 @@
     p.adresse_atelier = document.getElementById('param_adresse_atelier').value.trim();
     p.delai_fab = document.getElementById('param_delai_fab').value.trim();
     ['validite_jours','acompte_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { const v = parseFloat(document.getElementById('param_'+k).value); p[k] = isNaN(v) ? defaultParams()[k] : v; });
     p.mobilier_tranche = parseFloat(document.getElementById('param_mobilier_tranche').value) || 0;
     p.releve_forfait = parseFloat(document.getElementById('param_releve_forfait').value) || 0;
     p.releve_tranche = parseFloat(document.getElementById('param_releve_tranche').value) || 0;
@@ -1252,7 +1263,7 @@
     document.getElementById('param_vernis').value = p.vernis || 19;
     document.getElementById('param_bois_jupe').value = p.bois_jupe !== undefined ? p.bois_jupe : 12;
     document.getElementById('param_tasseaux').value = p.tasseaux !== undefined ? p.tasseaux : 8;
-    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
+    ['dessin_brut_base','dessin_brut_m2','dessin_std_base','dessin_std_m2','dessin_det_base','dessin_det_m2','plans_papier_m2','filament_kg','machine_h','prep_impr_base','prep_impr_par_h','impr_h_cm2','impr_g_cm2','bois_base_h','bois_par_m_h','assemblage_base_h','assemblage_par_cm2','jardin_base_h','jardin_par_cm2','pied_h_machine','stl_remplissage','stl_g_par_h','connectee_h_dessin','connectee_h_montage','connectee_mat','express_pct'].forEach(k => { document.getElementById('param_'+k).value = (p[k] !== undefined ? p[k] : defaultParams()[k]); });
     document.getElementById('param_mobilier_tranche').value = p.mobilier_tranche;
     document.getElementById('param_releve_forfait').value = p.releve_forfait;
     document.getElementById('param_releve_tranche').value = p.releve_tranche;
@@ -1273,7 +1284,8 @@
     const grid = document.getElementById('optionGrid');
     grid.innerHTML = '';
     optionDefs.forEach(o => {
-      const locked = o.requiresJardin && !state.options.jardin_amenage;
+      const sansEclairage = !(state.options.eclairage_interieur || state.options.eclairage_exterieur);
+      const locked = (o.requiresJardin && !state.options.jardin_amenage) || (o.requiresEclairage && sansEclairage);
       if (locked) state.options[o.key] = false;
       const checked = !!state.options[o.key];
       const card = document.createElement('label');
@@ -1282,11 +1294,11 @@
         <input type="checkbox" id="opt_${o.key}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>
         <span>
           <span class="opt-title">${o.label}</span>
-          <span class="opt-desc">${o.desc}${locked ? ' Nécessite l\u2019option Jardin aménagé.' : ''}</span>
+          <span class="opt-desc">${o.desc}${locked ? (o.requiresEclairage ? ' Nécessite un éclairage intérieur ou extérieur.' : ' Nécessite l\u2019option Jardin aménagé.') : ''}</span>
         </span>`;
       card.querySelector('input').addEventListener('change', (e) => {
         state.options[o.key] = e.target.checked;
-        if (o.key === 'jardin_amenage') renderOptions();
+        if (['jardin_amenage','eclairage_interieur','eclairage_exterieur'].includes(o.key)) renderOptions();
         else { card.classList.toggle('checked', e.target.checked); }
       });
       grid.appendChild(card);
@@ -1380,6 +1392,7 @@
     }
     if (o.murs_ouvrages) dessin.push({ label:'Murs ouvragés', heures: 2 });
     if (o.mobilier) dessin.push({ label:'Dessin cuisine (mobilier)', heures: 5 });
+    if (o.connectee) dessin.push({ label:'Programmation éclairage connecté (scénarios)', heures: p.connectee_h_dessin });
     dessin.push({ label:`Dessin des pieds (${nbPieds} pieds)`, heures: arr1(1 + 0.25 * nbPieds) });
 
     // --- Travail du bois (jupe) — calé sur Bati Tole : ≈ 21 h pour 3,6 m de périmètre ---
@@ -1396,6 +1409,7 @@
     }
     if (o.eclairage_interieur) assemblage.push({ label:'Montage élec. intérieur', heures: 6 + 1.5*tranche(SbatReel,50) });
     if (o.eclairage_exterieur) assemblage.push({ label:'Montage élec. extérieur', heures: 5 + 1*tranche(SbatReel,50) });
+    if (o.connectee) assemblage.push({ label:'Montage et essais du module connecté', heures: p.connectee_h_montage });
 
     // --- Peinture / finition ---
     if (Ccond) peinture.push({ label:'Vernis de la jupe (4 couches)', heures: 2 });
@@ -1435,6 +1449,7 @@
       matAuto.push({ label:'Gravier mini (1 paquet)', cost: p.gravier });
       matAuto.push({ label:'Vernis (1 pot)', cost: p.vernis || 19 });
     }
+    if (o.connectee) matAuto.push({ label:'Module Wi-Fi, relais et alimentation', cost: p.connectee_mat });
     const matCompte = state.materiaux
       .filter(m => m.quantite > 0)
       .map(m => ({ label: m.nom + ' (' + m.quantite + ' × ' + m.unite + ')', cost: m.prix * m.quantite }));
@@ -1460,7 +1475,8 @@
     const baseMargeMatForf = coutMateriaux + coutForfaits + charges;
     const marge = baseMargeMatForf * (p.marge/100);
     const baseMarge = sousTotal + charges; // pour affichage sous-total avec charges
-    const totalAvantRemise = coutMO + baseMargeMatForf + marge;
+    const express = o.express ? (coutMO + baseMargeMatForf + marge) * (p.express_pct / 100) : 0;
+    const totalAvantRemise = coutMO + baseMargeMatForf + marge + express;
     const remise = calcRemise(totalAvantRemise);
     const totalHT = totalAvantRemise - remise;
     const tva = totalHT * (p.tva/100);
@@ -1473,7 +1489,7 @@
     return { dessin, decoupe, assemblage, peinture, forfaits, matAuto, matCompte,
              coutDessin, coutDecoupe, coutAssemblage, coutPeinture,
              coutForfaits, coutMateriaux, coutMO, charges, sousTotal,
-             baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH, remise, totalAvantRemise,
+             baseMarge, marge, totalHT, tva, totalTTC, p, fmt, fmtH, remise, totalAvantRemise, express,
              emprise: { l: longueur/ev*100, w: largeur/ev*100, socle: Math.sqrt(Sbase||0)*100, jardin: SjardinReel > 0 } };
   }
 
@@ -1916,7 +1932,8 @@
     const kMatForf          = (1 + p.charges/100) * (1 + p.marge/100);
     const matClient         = coutMateriaux * kMatForf;
     const forfClient        = coutForfaits  * kMatForf;
-    const avantRemiseClient = coutMOClient + matClient + forfClient;
+    const expressClient     = state.options.express ? (coutMOClient + matClient + forfClient) * (p.express_pct / 100) : 0;
+    const avantRemiseClient = coutMOClient + matClient + forfClient + expressClient;
     const remiseClient      = calcRemise(avantRemiseClient);
     const totalHTClient     = avantRemiseClient - remiseClient;
     const tvaClient         = totalHTClient * (p.tva/100);
@@ -1934,6 +1951,7 @@
       ${catRow('Peinture &amp; finition',       coutMOPeinture)}
       ${catRow('Matériaux &amp; fournitures',   matClient)}
       ${catRow('Prestations (impression 3D, socle, options…)', forfClient)}
+      ${catRow(`Livraison express (+${p.express_pct} %)`, expressClient)}
     </table>`;
 
     const remiseLbl = state.projet.remise_type === 'pct' ? ` (${state.projet.remise} %)` : '';
@@ -2108,6 +2126,7 @@
       `<tr><td class="label">Forfaits</td><td class="val">${fmt(coutForfaits)}</td></tr>` +
       `<tr><td class="label">Charges (${p.charges}% sur mat+forfaits)</td><td class="val">${fmt(charges)}</td></tr>` +
       `<tr><td class="label">Marge (${p.marge}% sur mat+forfaits+charges)</td><td class="val">${fmt(marge)}</td></tr>` +
+      (data.express ? `<tr><td class="label">Livraison express (+${p.express_pct} %)</td><td class="val">${fmt(data.express)}</td></tr>` : '') +
       (remise > 0 ? `<tr><td class="label">Avant remise</td><td class="val">${fmt(totalAvantRemise)}</td></tr><tr><td class="label">Remise commerciale</td><td class="val">− ${fmt(remise)}</td></tr>` : '') +
       `<tr><td class="label">Total HT</td><td class="val">${fmt(totalHT)}</td></tr>` +
       ((p.tva > 0)
