@@ -2005,7 +2005,11 @@
         return `<div class="choix-card${actif ? ' actif' : ''}"><div class="cc-nom">${f.nom}</div><div class="cc-desc">${f.desc}</div>
           <div class="cc-prix">${fmt(prixClient(d))}</div><div class="cc-sub">${f.toutes ? 'Toutes options' : 'Maquette seule' + (actif ? ' · niveau de ce devis' : '')}</div></div>`;
       }).join('');
-      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div></div>`;
+      const fCur = FORMULES.find(f => !f.toutes && f.niveau === (pr.niveau || 'standard'));
+      const avecOpt = Object.values(state.options || {}).some(v => v) || (state.materiaux || []).some(m => parseFloat(m.quantite) > 0);
+      const dCur = simuler(() => {});
+      const ligne = `<p class="cc-votre" style="margin:10px 0 0;font-size:14px;"><strong>Votre devis</strong> = ${fCur ? fCur.nom : 'formule choisie'}${avecOpt ? ' + options choisies' : ''} = <strong>${fmt(dCur.totalHT)}</strong>${dCur.remise > 0 ? ' (remise déduite)' : ''}</p>`;
+      html += `<div class="choix"><h4>Formules au choix</h4><div class="choix-grid">${cartes}</div>${ligne}</div>`;
     }
     if (eCk.checked){
       const ech = [50, 75, 100];
